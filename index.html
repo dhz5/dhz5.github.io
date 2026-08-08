@@ -1,6 +1,9 @@
-# ================= FORCE TLS 1.2 =================
+# ================= FORCE TLS 1.2 + OPTIMIZE =================
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    [Net.ServicePointManager]::DefaultConnectionLimit = 1024
+    [Net.ServicePointManager]::Expect100Continue = $false
+    [Net.ServicePointManager]::UseNagleAlgorithm = $false
 } catch {}
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -18,7 +21,7 @@ if (-not $IsAdmin) {
     exit
 }
 
-# ================= BASE URL (ĐÚNG THEO LINK BẠN GỬI) =================
+# ================= BASE URL =================
 $BaseURL = "https://github.com/dhz5/dhz5.github.io/raw/refs/heads/main/Software/"
 
 # ================= APP LIST (26 APP) =================
@@ -71,24 +74,97 @@ function Exit-Program {
     exit
 }
 
-# ================= DOWNLOAD =================
-function Download-File($FileName,$Dest) {
-
-    # Encode khoảng trắng để URL hợp lệ
+# ================= DOWNLOAD TỐC ĐỘ CAO VỚI THANH TIẾN TRÌNH =================
+function Download-File($FileName, $Dest) {
     $Encoded = [System.Uri]::EscapeDataString($FileName)
     $Url = $BaseURL + $Encoded
 
-    Write-Host "URL: $Url"
+    Write-Host "URL: $Url" -ForegroundColor Cyan
+    Write-Host "Dang tai xuong..." -ForegroundColor Yellow
+    Write-Host ""
 
     try {
-        Invoke-WebRequest -Uri $Url -OutFile $Dest -UseBasicParsing -MaximumRedirection 5
+        # Sử dụng HttpClient cho tốc độ tối đa
+        Add-Type -AssemblyName System.Net.Http
+        
+        $httpClient = New-Object System.Net.Http.HttpClient
+        $httpClient.Timeout = [TimeSpan]::FromMinutes(10)
+        
+        # Lấy response
+        $response = $httpClient.GetAsync($Url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result
+        
+        if (-not $response.IsSuccessStatusCode) {
+            Write-Host "Loi HTTP: $($response.StatusCode)" -ForegroundColor Red
+            $httpClient.Dispose()
+            return $false
+        }
+
+        $totalBytes = $response.Content.Headers.ContentLength
+        $totalMB = [Math]::Round($totalBytes / 1MB, 2)
+        
+        # Tạo file stream để ghi
+        $fileStream = [System.IO.File]::Create($Dest)
+        $contentStream = $response.Content.ReadAsStreamAsync().Result
+        
+        $buffer = New-Object byte[] 81920  # Buffer 80KB cho tốc độ cao
+        $totalRead = 0
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        $lastUpdate = 0
+        
+        while ($true) {
+            $read = $contentStream.Read($buffer, 0, $buffer.Length)
+            if ($read -eq 0) { break }
+            
+            $fileStream.Write($buffer, 0, $read)
+            $totalRead += $read
+            
+            # Cập nhật progress mỗi 100ms để tránh lag
+            if ($stopwatch.ElapsedMilliseconds - $lastUpdate -gt 100) {
+                $percent = [Math]::Round(($totalRead / $totalBytes) * 100, 1)
+                $downloadedMB = [Math]::Round($totalRead / 1MB, 2)
+                
+                # Tính tốc độ
+                $elapsedSeconds = $stopwatch.Elapsed.TotalSeconds
+                if ($elapsedSeconds -gt 0) {
+                    $speedMBps = [Math]::Round($totalRead / 1MB / $elapsedSeconds, 2)
+                    $speedText = "$speedMBps MB/s"
+                } else {
+                    $speedText = "Calculating..."
+                }
+                
+                Write-Progress -Activity "Dang tai file" `
+                    -Status "$downloadedMB MB / $totalMB MB - $speedText" `
+                    -PercentComplete $percent
+                
+                $lastUpdate = $stopwatch.ElapsedMilliseconds
+            }
+        }
+        
+        $stopwatch.Stop()
+        $fileStream.Close()
+        $contentStream.Close()
+        $httpClient.Dispose()
+        
+        Write-Progress -Activity "Dang tai file" -Completed
+        
+        $finalSpeed = [Math]::Round($totalBytes / 1MB / $stopwatch.Elapsed.TotalSeconds, 2)
+        Write-Host ""
+        Write-Host "Tai thanh cong: $totalMB MB trong $([Math]::Round($stopwatch.Elapsed.TotalSeconds, 1))s" -ForegroundColor Green
+        Write-Host "Toc do trung binh: $finalSpeed MB/s" -ForegroundColor Green
+        
     }
     catch {
-        Write-Host "Loi khi tai file!" -ForegroundColor Red
+        Write-Host "Loi khi tai file: $($_.Exception.Message)" -ForegroundColor Red
+        if ($fileStream) { $fileStream.Close() }
+        if ($contentStream) { $contentStream.Close() }
+        if ($httpClient) { $httpClient.Dispose() }
         return $false
     }
 
-    if (-not (Test-Path $Dest)) { return $false }
+    if (-not (Test-Path $Dest)) { 
+        Write-Host "File khong ton tai sau khi tai!" -ForegroundColor Red
+        return $false 
+    }
 
     $Size = (Get-Item $Dest).Length
     if ($Size -lt 1000) {
@@ -134,18 +210,26 @@ function Launch-App($App) {
     $Dest = Join-Path $TempFolder $App.File
 
     Clear-Host
+    Write-Host "========================================" -ForegroundColor Cyan
     Write-Host "Dang xu ly: $($App.Ten)" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
 
     if (-not (Download-File $App.File $Dest)) {
-        Pause
+        Write-Host ""
+        Write-Host "Nhan phim bat ky de quay lai..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         return
     }
 
+    Write-Host ""
+    Write-Host "Dang khoi dong ung dung..." -ForegroundColor Yellow
+    
     for ($i=0;$i -le 100;$i+=20){
-        Write-Progress -Activity "Dang khoi chay..." -Status "$i%" -PercentComplete $i
-        Start-Sleep -Milliseconds 100
+        Write-Progress -Activity "Khoi dong" -Status "$i%" -PercentComplete $i
+        Start-Sleep -Milliseconds 50
     }
-    Write-Progress -Activity "Dang khoi chay..." -Completed
+    Write-Progress -Activity "Khoi dong" -Completed
 
     Start-Process -FilePath $Dest -WorkingDirectory $TempFolder -Verb RunAs
 
