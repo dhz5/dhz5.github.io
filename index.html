@@ -21,28 +21,46 @@ if (-not $IsAdmin) {
 # ================= BASE URL =================
 $BaseURL = "https://raw.githubusercontent.com/dhz5/dhz5.github.io/main/Software/"
 
-# ================= APP LIST =================
+# ================= FULL 26 APP LIST =================
 $Apps = @(
-    @{Ten="CPU-Z x64";File="cpuz_x64.exe"},
-    @{Ten="CPU-Z x32";File="cpuz_x32.exe"},
-    @{Ten="FastCopy Portable";File="FastCopy-portable.exe"},
+    @{Ten="UltraISO Premium Portable";File="UltraISO Premium Portable.exe"},
     @{Ten="WinRAR Portable";File="WinRAR_portable.exe"},
-    @{Ten="UltraISO Premium Portable";File="UltraISO Premium Portable.exe"}
+    @{Ten="Acronis 2014 Portable";File="Acronis2014_portable.exe"},
+    @{Ten="BOOTICE x86";File="BOOTICEx86.exe"},
+    @{Ten="Brave Portable";File="Brave_portable.exe"},
+    @{Ten="CocCoc Portable";File="CocCoc_portable.exe"},
+    @{Ten="CPU-Z x32";File="cpuz_x32.exe"},
+    @{Ten="CPU-Z x64";File="cpuz_x64.exe"},
+    @{Ten="Driver Booster 13";File="Driver_Booster_13_free_portable.exe"},
+    @{Ten="Everything Portable";File="Everything_portable.exe"},
+    @{Ten="FastCopy Portable";File="FastCopy-portable.exe"},
+    @{Ten="Hard Disk Sentinel Standard";File="Hard Disk Sentinel-portable.exe"},
+    @{Ten="Hard Disk Sentinel Pro";File="HDSentinel_pro_portable.exe"},
+    @{Ten="IDM Portable";File="IDM_portable.exe"},
+    @{Ten="Lightshot Portable";File="lightshot-portable.exe"},
+    @{Ten="LocalSend 1.17";File="LocalSend_1.17_portable.exe"},
+    @{Ten="PartitionWizard 10";File="PartitionWizard10.exe"},
+    @{Ten="PC Health Check";File="PCHealthCheck_protable.exe"},
+    @{Ten="PowerToys 0.98";File="PowerToys.v0.98_portable.exe"},
+    @{Ten="PrimoCache Portable";File="PrimoCache_portable.exe"},
+    @{Ten="QemuBootTester";File="QemuBootTester.exe"},
+    @{Ten="Recuva x32";File="Recuva.exe"},
+    @{Ten="Recuva x64";File="Recuva64.exe"},
+    @{Ten="Revo Uninstaller";File="Revo Uninstaller_portable.exe"},
+    @{Ten="Rufus 4.4";File="rufus-4.4p.exe"},
+    @{Ten="TreeSize Free";File="TreeSize Free_portable.exe"}
 )
 
 # ================= TEMP STORAGE =================
 $Global:TempFolders = New-Object System.Collections.ArrayList
 
 function Cleanup-Temp {
-    Clear-Host
-    Write-Host "Dang don dep tat ca Temp..." -ForegroundColor Yellow
-
+    Write-Host "`nDang don dep tat ca Temp..." -ForegroundColor Yellow
     foreach ($folder in ($Global:TempFolders | Select-Object -Unique)) {
         if (Test-Path $folder) {
             Remove-Item $folder -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
-
     Write-Host "Da don dep xong." -ForegroundColor Green
     Start-Sleep -Seconds 1
 }
@@ -102,15 +120,7 @@ function Launch-App($App) {
         return
     }
 
-    for ($i=0;$i -le 100;$i+=25){
-        Write-Progress `
-            -Activity "Dang khoi chay ung dung (Admin)..." `
-            -Status "$i%" `
-            -PercentComplete $i
-        Start-Sleep -Milliseconds 120
-    }
-
-    Write-Progress -Activity "Dang khoi chay ung dung (Admin)..." -Completed
+    Write-Host "`nDang khoi chay ung dung (Admin)..." -ForegroundColor Yellow
 
     Start-Process `
         -FilePath $Dest `
