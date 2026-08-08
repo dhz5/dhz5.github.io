@@ -1,48 +1,166 @@
-#Code compiled from multiple sources
+# ================= FORCE TLS 1.2 =================
 try {
-    # Su dung TLS 1.2 cho ket noi HTTPS
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 } catch {}
 
-# Dat URL tai file
-$url = 'https://drhoangzp.github.io/x.cmd'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$Host.UI.RawUI.WindowTitle = "APP TEST SANDBOX (ONLINE MODE)"
 
-# Tao ten file ngau nhien trong thu muc TEMP
-$rand = [guid]::NewGuid().ToString()
-$tempPath = Join-Path $env:TEMP "x_$rand.cmd"
+# ================= ADMIN CHECK =================
+$IsAdmin = ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-# Tai file
-try {
-    Invoke-WebRequest -Uri $url -OutFile $tempPath -ErrorAction Stop
-#    Write-Host "Tai file thanh cong: $tempPath"
-} catch {
-    Write-Error "Khong the tai file tu $url"
-    return
+if (-not $IsAdmin) {
+    Start-Process powershell.exe `
+        -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" `
+        -Verb RunAs
+    exit
 }
 
-# Kiem tra file da duoc tao chua
-if (-not (Test-Path $tempPath)) {
-    Write-Error "File khong ton tai sau khi tai ve. Dung lai."
-    return
+# ================= BASE URL =================
+$BaseURL = "https://raw.githubusercontent.com/dhz5/dhz5.github.io/main/Software/"
+
+# ================= APP LIST =================
+$Apps = @(
+    @{Ten="CPU-Z x64";File="cpuz_x64.exe"},
+    @{Ten="CPU-Z x32";File="cpuz_x32.exe"},
+    @{Ten="FastCopy Portable";File="FastCopy-portable.exe"},
+    @{Ten="WinRAR Portable";File="WinRAR_portable.exe"},
+    @{Ten="UltraISO Premium Portable";File="UltraISO Premium Portable.exe"}
+)
+
+# ================= TEMP STORAGE =================
+$Global:TempFolders = New-Object System.Collections.ArrayList
+
+function Cleanup-Temp {
+    Clear-Host
+    Write-Host "Dang don dep tat ca Temp..." -ForegroundColor Yellow
+
+    foreach ($folder in ($Global:TempFolders | Select-Object -Unique)) {
+        if (Test-Path $folder) {
+            Remove-Item $folder -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Write-Host "Da don dep xong." -ForegroundColor Green
+    Start-Sleep -Seconds 1
 }
 
-# Thuc thi file voi quyen admin
-
-try {
-# Neu khong muon chuyen admin thi thay Start-Process -FilePath "cmd.exe" ... thi thay thanh & cmd.exe /c "`"$tempPath`""
-#    & cmd.exe /c "`"$tempPath`""
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$tempPath`"" -Verb RunAs -Wait
-} catch {
-    Write-Error "Khong the thuc thi file: $($_.Exception.Message)"
-    return
+function Exit-Program {
+    Cleanup-Temp
+    exit
 }
 
-# Xoa file sau khi thuc thi xong
-try {
-    Remove-Item $tempPath -Force
-#    Write-Host "Da xoa file: $tempPath"
-} catch {
-    Write-Warning "Khong the xoa file: $($_.Exception.Message)"
+# ================= DOWNLOAD WITH PROGRESS =================
+function Download-WithProgress($Url, $Destination) {
+
+    $WebClient = New-Object System.Net.WebClient
+
+    $WebClient.DownloadProgressChanged += {
+        param($sender, $e)
+        Write-Progress `
+            -Activity "Dang tai ung dung tu GitHub..." `
+            -Status "$($e.ProgressPercentage)%" `
+            -PercentComplete $e.ProgressPercentage
+    }
+
+    $WebClient.DownloadFileCompleted += {
+        Write-Progress -Activity "Dang tai ung dung tu GitHub..." -Completed
+    }
+
+    $WebClient.DownloadFileAsync($Url, $Destination)
+
+    while ($WebClient.IsBusy) {
+        Start-Sleep -Milliseconds 200
+    }
+
+    $WebClient.Dispose()
 }
 
-exit
+# ================= LAUNCH APP =================
+function Launch-App($App) {
+
+    $Url = $BaseURL + $App.File
+
+    $TempFolder = Join-Path $env:TEMP ("Sandbox_" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $TempFolder | Out-Null
+    $Global:TempFolders.Add($TempFolder) | Out-Null
+
+    $Dest = Join-Path $TempFolder $App.File
+
+    Clear-Host
+    Write-Host "Dang xu ly: $($App.Ten)" -ForegroundColor Cyan
+    Write-Host "URL: $Url"
+    Write-Host ""
+
+    try {
+        Download-WithProgress $Url $Dest
+    }
+    catch {
+        Write-Host "Loi khi tai file!" -ForegroundColor Red
+        return
+    }
+
+    for ($i=0;$i -le 100;$i+=25){
+        Write-Progress `
+            -Activity "Dang khoi chay ung dung (Admin)..." `
+            -Status "$i%" `
+            -PercentComplete $i
+        Start-Sleep -Milliseconds 120
+    }
+
+    Write-Progress -Activity "Dang khoi chay ung dung (Admin)..." -Completed
+
+    Start-Process `
+        -FilePath $Dest `
+        -WorkingDirectory $TempFolder `
+        -Verb RunAs
+
+    Write-Host ""
+    Write-Host "Ung dung da duoc mo voi quyen Administrator." -ForegroundColor Green
+    Write-Host ""
+    Write-Host "[E] Quay lai menu"
+    Write-Host "[Q] Thoat va don dep Temp"
+
+    while ($true) {
+        $Key = [Console]::ReadKey($true)
+        $Cmd = $Key.KeyChar.ToString().ToUpper()
+
+        if ($Cmd -eq "E") { return }
+        if ($Cmd -eq "Q") { Exit-Program }
+    }
+}
+
+# ================= MENU =================
+function Show-Menu {
+    Clear-Host
+    Write-Host "=========== APP TEST SANDBOX (ONLINE) ===========" -ForegroundColor Cyan
+    Write-Host ""
+
+    for ($i=0;$i -lt $Apps.Count;$i++) {
+        Write-Host ("{0:D2}. {1}" -f ($i+1), $Apps[$i].Ten)
+    }
+
+    Write-Host ""
+    Write-Host "[Q] Quit + Clean Temp"
+    Write-Host ""
+    Write-Host -NoNewline "Nhap so va Enter: "
+}
+
+# ================= MAIN LOOP =================
+while ($true) {
+
+    Show-Menu
+    $Input = Read-Host
+
+    if ($Input.ToUpper() -eq "Q") {
+        Exit-Program
+    }
+
+    $Index=0
+    if (-not [int]::TryParse($Input,[ref]$Index)) { continue }
+    if ($Index -lt 1 -or $Index -gt $Apps.Count) { continue }
+
+    Launch-App $Apps[$Index-1]
+}
