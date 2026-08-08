@@ -1,48 +1,296 @@
-#Code compiled from multiple sources
+# ================= FORCE TLS 1.2 + OPTIMIZE =================
 try {
-    # Su dung TLS 1.2 cho ket noi HTTPS
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    [Net.ServicePointManager]::DefaultConnectionLimit = 1024
+    [Net.ServicePointManager]::Expect100Continue = $false
+    [Net.ServicePointManager]::UseNagleAlgorithm = $false
 } catch {}
 
-# Dat URL tai file
-$url = 'https://drhoangzp.github.io/x.cmd'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$Host.UI.RawUI.WindowTitle = "APP TEST SANDBOX (GITHUB RAW REFS)"
 
-# Tao ten file ngau nhien trong thu muc TEMP
-$rand = [guid]::NewGuid().ToString()
-$tempPath = Join-Path $env:TEMP "x_$rand.cmd"
+# ================= ADMIN CHECK =================
+$IsAdmin = ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-# Tai file
-try {
-    Invoke-WebRequest -Uri $url -OutFile $tempPath -ErrorAction Stop
-#    Write-Host "Tai file thanh cong: $tempPath"
-} catch {
-    Write-Error "Khong the tai file tu $url"
-    return
+if (-not $IsAdmin) {
+    Start-Process powershell.exe `
+        -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" `
+        -Verb RunAs
+    exit
 }
 
-# Kiem tra file da duoc tao chua
-if (-not (Test-Path $tempPath)) {
-    Write-Error "File khong ton tai sau khi tai ve. Dung lai."
-    return
+# ================= BASE URL =================
+$BaseURL = "https://github.com/dhz5/dhz5.github.io/raw/refs/heads/main/Software/"
+
+# ================= APP LIST (26 APP) =================
+$Apps = @(
+    @{Ten="BOOTICE x86";File="BOOTICEx86.exe"},
+    @{Ten="Acronis 2014 Portable";File="Acronis2014_portable.exe"},
+    @{Ten="Brave Portable";File="Brave_portable.exe"},
+    @{Ten="CocCoc Portable";File="CocCoc_portable.exe"},
+    @{Ten="Driver Booster 13";File="Driver_Booster_13_free_portable.exe"},
+    @{Ten="Everything Portable";File="Everything_portable.exe"},
+    @{Ten="FastCopy Portable";File="FastCopy-portable.exe"},
+    @{Ten="Hard Disk Sentinel Pro";File="HDSentinel_pro_portable.exe"},
+    @{Ten="Hard Disk Sentinel Standard";File="Hard Disk Sentinel-portable.exe"},
+    @{Ten="IDM Portable";File="IDM_portable.exe"},
+    @{Ten="LocalSend 1.17";File="LocalSend_1.17_portable.exe"},
+    @{Ten="PC Health Check";File="PCHealthCheck_protable.exe"},
+    @{Ten="PartitionWizard 10";File="PartitionWizard10.exe"},
+    @{Ten="PowerToys 0.98";File="PowerToys.v0.98_portable.exe"},
+    @{Ten="PrimoCache Portable";File="PrimoCache_portable.exe"},
+    @{Ten="QemuBootTester";File="QemuBootTester.exe"},
+    @{Ten="Recuva x32";File="Recuva.exe"},
+    @{Ten="Recuva x64";File="Recuva64.exe"},
+    @{Ten="Revo Uninstaller";File="Revo Uninstaller_portable.exe"},
+    @{Ten="TreeSize Free";File="TreeSize Free_portable.exe"},
+    @{Ten="UltraISO Premium Portable";File="UltraISO Premium Portable.exe"},
+    @{Ten="WinRAR Portable";File="WinRAR_portable.exe"},
+    @{Ten="CPU-Z x32";File="cpuz_x32.exe"},
+    @{Ten="CPU-Z x64";File="cpuz_x64.exe"},
+    @{Ten="Lightshot Portable";File="lightshot-portable.exe"},
+    @{Ten="Rufus 4.4";File="rufus-4.4p.exe"}
+)
+
+# ================= TEMP STORAGE =================
+$Global:TempFolders = New-Object System.Collections.ArrayList
+
+function Cleanup-Temp {
+    Clear-Host
+    Write-Host "Dang don dep tat ca Temp..." -ForegroundColor Yellow
+    foreach ($folder in ($Global:TempFolders | Select-Object -Unique)) {
+        if (Test-Path $folder) {
+            Remove-Item $folder -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Write-Host "Da don dep xong." -ForegroundColor Green
+    Start-Sleep -Seconds 1
 }
 
-# Thuc thi file voi quyen admin
-
-try {
-# Neu khong muon chuyen admin thi thay Start-Process -FilePath "cmd.exe" ... thi thay thanh & cmd.exe /c "`"$tempPath`""
-#    & cmd.exe /c "`"$tempPath`""
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$tempPath`"" -Verb RunAs -Wait
-} catch {
-    Write-Error "Khong the thuc thi file: $($_.Exception.Message)"
-    return
+function Exit-Program {
+    Cleanup-Temp
+    exit
 }
 
-# Xoa file sau khi thuc thi xong
-try {
-    Remove-Item $tempPath -Force
-#    Write-Host "Da xoa file: $tempPath"
-} catch {
-    Write-Warning "Khong the xoa file: $($_.Exception.Message)"
+# ================= DOWNLOAD TỐC ĐỘ CAO VỚI THANH TIẾN TRÌNH =================
+function Download-File($FileName, $Dest) {
+    $Encoded = [System.Uri]::EscapeDataString($FileName)
+    $Url = $BaseURL + $Encoded
+
+    Write-Host "URL: $Url" -ForegroundColor Cyan
+    Write-Host "Dang tai xuong..." -ForegroundColor Yellow
+    Write-Host ""
+
+    try {
+        # Sử dụng HttpClient cho tốc độ tối đa
+        Add-Type -AssemblyName System.Net.Http
+        
+        $httpClient = New-Object System.Net.Http.HttpClient
+        $httpClient.Timeout = [TimeSpan]::FromMinutes(10)
+        
+        # Lấy response
+        $response = $httpClient.GetAsync($Url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).Result
+        
+        if (-not $response.IsSuccessStatusCode) {
+            Write-Host "Loi HTTP: $($response.StatusCode)" -ForegroundColor Red
+            $httpClient.Dispose()
+            return $false
+        }
+
+        $totalBytes = $response.Content.Headers.ContentLength
+        $totalMB = [Math]::Round($totalBytes / 1MB, 2)
+        
+        # Tạo file stream để ghi
+        $fileStream = [System.IO.File]::Create($Dest)
+        $contentStream = $response.Content.ReadAsStreamAsync().Result
+        
+        $buffer = New-Object byte[] 81920  # Buffer 80KB cho tốc độ cao
+        $totalRead = 0
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        $lastUpdate = 0
+        
+        while ($true) {
+            $read = $contentStream.Read($buffer, 0, $buffer.Length)
+            if ($read -eq 0) { break }
+            
+            $fileStream.Write($buffer, 0, $read)
+            $totalRead += $read
+            
+            # Cập nhật progress mỗi 100ms để tránh lag
+            if ($stopwatch.ElapsedMilliseconds - $lastUpdate -gt 100) {
+                $percent = [Math]::Round(($totalRead / $totalBytes) * 100, 1)
+                $downloadedMB = [Math]::Round($totalRead / 1MB, 2)
+                
+                # Tính tốc độ
+                $elapsedSeconds = $stopwatch.Elapsed.TotalSeconds
+                if ($elapsedSeconds -gt 0) {
+                    $speedMBps = [Math]::Round($totalRead / 1MB / $elapsedSeconds, 2)
+                    $speedText = "$speedMBps MB/s"
+                } else {
+                    $speedText = "Calculating..."
+                }
+                
+                Write-Progress -Activity "Dang tai file" `
+                    -Status "$downloadedMB MB / $totalMB MB - $speedText" `
+                    -PercentComplete $percent
+                
+                $lastUpdate = $stopwatch.ElapsedMilliseconds
+            }
+        }
+        
+        $stopwatch.Stop()
+        $fileStream.Close()
+        $contentStream.Close()
+        $httpClient.Dispose()
+        
+        Write-Progress -Activity "Dang tai file" -Completed
+        
+        $finalSpeed = [Math]::Round($totalBytes / 1MB / $stopwatch.Elapsed.TotalSeconds, 2)
+        Write-Host ""
+        Write-Host "Tai thanh cong: $totalMB MB trong $([Math]::Round($stopwatch.Elapsed.TotalSeconds, 1))s" -ForegroundColor Green
+        Write-Host "Toc do trung binh: $finalSpeed MB/s" -ForegroundColor Green
+        
+    }
+    catch {
+        Write-Host "Loi khi tai file: $($_.Exception.Message)" -ForegroundColor Red
+        if ($fileStream) { $fileStream.Close() }
+        if ($contentStream) { $contentStream.Close() }
+        if ($httpClient) { $httpClient.Dispose() }
+        return $false
+    }
+
+    if (-not (Test-Path $Dest)) { 
+        Write-Host "File khong ton tai sau khi tai!" -ForegroundColor Red
+        return $false 
+    }
+
+    $Size = (Get-Item $Dest).Length
+    if ($Size -lt 1000) {
+        Write-Host "File khong hop le (co the la HTML 404)." -ForegroundColor Red
+        Remove-Item $Dest -Force -ErrorAction SilentlyContinue
+        return $false
+    }
+
+    return $true
 }
 
-exit
+# ================= PAGING =================
+$PageSize = 10
+$CurrentPage = 0
+$TotalPages = [Math]::Ceiling($Apps.Count / $PageSize)
+
+function Show-Menu {
+    Clear-Host
+    $Start = $CurrentPage * $PageSize
+    $End = [Math]::Min($Start + $PageSize - 1, $Apps.Count - 1)
+
+    Write-Host "=========== APP TEST SANDBOX ===========" -ForegroundColor Cyan
+    Write-Host "Trang $($CurrentPage+1)/$TotalPages" -ForegroundColor Yellow
+    Write-Host ""
+
+    for ($i=$Start; $i -le $End; $i++) {
+        Write-Host ("{0:D2}. {1}" -f ($i+1), $Apps[$i].Ten)
+    }
+
+    Write-Host ""
+    Write-Host "[N] Next  [B] Back  [Q] Quit + Clean Temp" -ForegroundColor Green
+    Write-Host ""
+    Write-Host -NoNewline "Nhap so va Enter: "
+}
+
+# ================= LAUNCH =================
+function Launch-App($App) {
+
+    $TempFolder = Join-Path $env:TEMP ("Sandbox_" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $TempFolder | Out-Null
+    $Global:TempFolders.Add($TempFolder) | Out-Null
+
+    $Dest = Join-Path $TempFolder $App.File
+
+    Clear-Host
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "Dang xu ly: $($App.Ten)" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+
+    if (-not (Download-File $App.File $Dest)) {
+        Write-Host ""
+        Write-Host "Nhan phim bat ky de quay lai..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        return
+    }
+
+    Write-Host ""
+    Write-Host "Dang khoi dong ung dung..." -ForegroundColor Yellow
+    
+    for ($i=0;$i -le 100;$i+=20){
+        Write-Progress -Activity "Khoi dong" -Status "$i%" -PercentComplete $i
+        Start-Sleep -Milliseconds 50
+    }
+    Write-Progress -Activity "Khoi dong" -Completed
+
+    Start-Process -FilePath $Dest -WorkingDirectory $TempFolder -Verb RunAs
+
+    Write-Host ""
+    Write-Host "Ung dung da duoc mo voi quyen Administrator." -ForegroundColor Green
+    Write-Host ""
+    Write-Host "[E] Quay lai menu"
+    Write-Host "[Q] Thoat va don dep Temp"
+
+    while ($true) {
+        $Key = [Console]::ReadKey($true)
+        $Cmd = $Key.KeyChar.ToString().ToUpper()
+
+        if ($Cmd -eq "E") { return }
+        if ($Cmd -eq "Q") { Exit-Program }
+    }
+}
+
+# ================= MAIN LOOP =================
+$InputBuffer=""
+$NeedRedraw=$true
+
+while ($true) {
+
+    if ($NeedRedraw) {
+        Show-Menu
+        $NeedRedraw=$false
+    }
+
+    $Key=[Console]::ReadKey($true)
+
+    if ($InputBuffer -eq "") {
+        switch ($Key.KeyChar.ToString().ToUpper()) {
+            "Q" { Exit-Program }
+            "N" { if ($CurrentPage -lt $TotalPages-1){$CurrentPage++}; $NeedRedraw=$true; continue }
+            "B" { if ($CurrentPage -gt 0){$CurrentPage--}; $NeedRedraw=$true; continue }
+        }
+    }
+
+    if ($Key.KeyChar -match '[0-9]') {
+        $InputBuffer+=$Key.KeyChar
+        Write-Host $Key.KeyChar -NoNewline
+    }
+
+    elseif ($Key.Key -eq "Backspace") {
+        if ($InputBuffer.Length -gt 0){
+            $InputBuffer=$InputBuffer.Substring(0,$InputBuffer.Length-1)
+            [Console]::SetCursorPosition([Console]::CursorLeft-1,[Console]::CursorTop)
+            Write-Host " " -NoNewline
+            [Console]::SetCursorPosition([Console]::CursorLeft-1,[Console]::CursorTop)
+        }
+    }
+
+    elseif ($Key.Key -eq "Enter") {
+
+        $Index=0
+        if (-not [int]::TryParse($InputBuffer,[ref]$Index)){ $InputBuffer=""; continue }
+        if ($Index -lt 1 -or $Index -gt $Apps.Count){ $InputBuffer=""; continue }
+
+        $InputBuffer=""
+        Launch-App $Apps[$Index-1]
+        $NeedRedraw=$true
+    }
+}
