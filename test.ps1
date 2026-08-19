@@ -1,0 +1,225 @@
+﻿[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$Host.UI.RawUI.WindowTitle = "APP TEST SANDBOX (FORCE ADMIN MODE)"
+
+# ================= ADMIN CHECK =================
+$IsAdmin = ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $IsAdmin) {
+    Start-Process powershell.exe `
+        -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" `
+        -Verb RunAs
+    exit
+}
+
+# ================= PATH =================
+$ThuMucWebsite = "C:\Users\WDAGUtilityAccount\Desktop\website"
+
+if (-not (Test-Path -LiteralPath $ThuMucWebsite)) {
+    Write-Host "Khong tim thay folder website!" -ForegroundColor Red
+    Read-Host "Nhan ENTER de thoat"
+    exit
+}
+
+# ================= APP LIST =================
+$Apps = @(
+    @{Ten="UltraISO Premium Portable";File="UltraISO Premium Portable.exe"},
+    @{Ten="WinRAR Portable";File="WinRAR_portable.exe"},
+    @{Ten="Acronis 2014 Portable";File="Acronis2014_portable.exe"},
+    @{Ten="BOOTICE x86";File="BOOTICEx86.exe"},
+    @{Ten="Brave Portable";File="Brave_portable.exe"},
+    @{Ten="CocCoc Portable";File="CocCoc_portable.exe"},
+    @{Ten="CPU-Z x32";File="cpuz_x32.exe"},
+    @{Ten="CPU-Z x64";File="cpuz_x64.exe"},
+    @{Ten="Driver Booster 13";File="Driver_Booster_13_free_portable.exe"},
+    @{Ten="Everything Portable";File="Everything_portable.exe"},
+    @{Ten="FastCopy Portable";File="FastCopy-portable.exe"},
+    @{Ten="Hard Disk Sentinel Standard";File="Hard Disk Sentinel-portable.exe"},
+    @{Ten="Hard Disk Sentinel Pro";File="HDSentinel_pro_portable.exe"},
+    @{Ten="IDM Portable";File="IDM_portable.exe"},
+    @{Ten="Lightshot Portable";File="lightshot-portable.exe"},
+    @{Ten="LocalSend 1.17";File="LocalSend_1.17_portable.exe"},
+    @{Ten="PartitionWizard 10";File="PartitionWizard10.exe"},
+    @{Ten="PC Health Check";File="PCHealthCheck_protable.exe"},
+    @{Ten="PowerToys 0.98";File="PowerToys.v0.98_portable.exe"},
+    @{Ten="PrimoCache Portable";File="PrimoCache_portable.exe"},
+    @{Ten="QemuBootTester";File="QemuBootTester.exe"},
+    @{Ten="Recuva x32";File="Recuva.exe"},
+    @{Ten="Recuva x64";File="Recuva64.exe"},
+    @{Ten="Revo Uninstaller";File="Revo Uninstaller_portable.exe"},
+    @{Ten="Rufus 4.4";File="rufus-4.4p.exe"},
+    @{Ten="TreeSize Free";File="TreeSize Free_portable.exe"}
+)
+
+# ================= TEMP STORAGE =================
+$Global:TempFolders = New-Object System.Collections.ArrayList
+
+function Cleanup-Temp {
+    Clear-Host
+    Write-Host "Dang don dep tat ca Temp..." -ForegroundColor Yellow
+
+    foreach ($folder in ($Global:TempFolders | Select-Object -Unique)) {
+        if (Test-Path -LiteralPath $folder) {
+            Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Write-Host "Da don dep xong." -ForegroundColor Green
+    Start-Sleep -Seconds 1
+}
+
+function Exit-Program {
+    Cleanup-Temp
+    Write-Host "Dang thoat chuong trinh..." -ForegroundColor Cyan
+    Start-Sleep -Milliseconds 800
+    exit
+}
+
+# ================= PAGING =================
+$PageSize = 10
+$CurrentPage = 0
+$TotalPages = [Math]::Ceiling($Apps.Count / $PageSize)
+
+function Show-Menu {
+    Clear-Host
+    $Start = $CurrentPage * $PageSize
+    $End = [Math]::Min($Start + $PageSize - 1, $Apps.Count - 1)
+
+    Write-Host "=========== APP TEST SANDBOX ===========" -ForegroundColor Cyan
+    Write-Host "Trang $($CurrentPage+1)/$TotalPages" -ForegroundColor Yellow
+    Write-Host ""
+
+    for ($i=$Start; $i -le $End; $i++) {
+        Write-Host ("{0:D2}. {1}" -f ($i+1), $Apps[$i].Ten)
+    }
+
+    Write-Host ""
+    Write-Host "[N] Next  [B] Back  [Q] Quit + Clean Temp" -ForegroundColor Green
+    Write-Host ""
+    Write-Host -NoNewline "Nhap so va Enter: "
+}
+
+# ================= COPY PROGRESS =================
+function Copy-WithProgress($Source,$Dest) {
+    $Size = (Get-Item $Source).Length
+    $Buffer = New-Object byte[] 1MB
+    $TotalRead = 0
+
+    $ReadStream = [System.IO.File]::OpenRead($Source)
+    $WriteStream = [System.IO.File]::Create($Dest)
+
+    while (($Read = $ReadStream.Read($Buffer,0,$Buffer.Length)) -gt 0) {
+        $WriteStream.Write($Buffer,0,$Read)
+        $TotalRead += $Read
+        $Percent = [int](($TotalRead/$Size)*100)
+
+        Write-Progress `
+            -Activity "Dang tai ung dung vao Temp..." `
+            -Status "$Percent%" `
+            -PercentComplete $Percent
+    }
+
+    $ReadStream.Close()
+    $WriteStream.Close()
+    Write-Progress -Activity "Dang tai ung dung vao Temp..." -Completed
+}
+
+# ================= LAUNCH =================
+function Launch-App($App) {
+
+    $Source = Join-Path $ThuMucWebsite $App.File
+
+    if (-not (Test-Path $Source)) {
+        Write-Host "Khong tim thay file!" -ForegroundColor Red
+        return
+    }
+
+    $TempFolder = Join-Path $env:TEMP ("Sandbox_" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $TempFolder | Out-Null
+    $Global:TempFolders.Add($TempFolder) | Out-Null
+
+    $Dest = Join-Path $TempFolder $App.File
+
+    Clear-Host
+    Write-Host "Dang xu ly: $($App.Ten)" -ForegroundColor Cyan
+    Write-Host ""
+
+    Copy-WithProgress $Source $Dest
+
+    for ($i=0;$i -le 100;$i+=20){
+        Write-Progress `
+            -Activity "Dang khoi chay ung dung (FORCE ADMIN)..." `
+            -Status "$i%" `
+            -PercentComplete $i
+        Start-Sleep -Milliseconds 120
+    }
+
+    Write-Progress -Activity "Dang khoi chay ung dung (FORCE ADMIN)..." -Completed
+
+    Start-Process `
+        -FilePath $Dest `
+        -WorkingDirectory $TempFolder `
+        -Verb RunAs
+
+    Write-Host ""
+    Write-Host "Ung dung da duoc khoi chay voi quyen Administrator." -ForegroundColor Green
+    Write-Host ""
+    Write-Host "[E] Quay lai menu"
+    Write-Host "[Q] Thoat va don dep Temp"
+
+    while ($true) {
+        $Key = [Console]::ReadKey($true)
+        $Cmd = $Key.KeyChar.ToString().ToUpper()
+
+        if ($Cmd -eq "E") { return }
+        if ($Cmd -eq "Q") { Exit-Program }
+    }
+}
+
+# ================= MAIN LOOP =================
+$InputBuffer=""
+$NeedRedraw=$true
+
+while ($true) {
+
+    if ($NeedRedraw) {
+        Show-Menu
+        $NeedRedraw=$false
+    }
+
+    $Key=[Console]::ReadKey($true)
+
+    if ($InputBuffer -eq "") {
+        switch ($Key.KeyChar.ToString().ToUpper()) {
+            "Q" { Exit-Program }
+            "N" { if ($CurrentPage -lt $TotalPages-1){$CurrentPage++}; $NeedRedraw=$true; continue }
+            "B" { if ($CurrentPage -gt 0){$CurrentPage--}; $NeedRedraw=$true; continue }
+        }
+    }
+
+    if ($Key.KeyChar -match '[0-9]') {
+        $InputBuffer+=$Key.KeyChar
+        Write-Host $Key.KeyChar -NoNewline
+    }
+
+    elseif ($Key.Key -eq "Backspace") {
+        if ($InputBuffer.Length -gt 0){
+            $InputBuffer=$InputBuffer.Substring(0,$InputBuffer.Length-1)
+            [Console]::SetCursorPosition([Console]::CursorLeft-1,[Console]::CursorTop)
+            Write-Host " " -NoNewline
+            [Console]::SetCursorPosition([Console]::CursorLeft-1,[Console]::CursorTop)
+        }
+    }
+
+    elseif ($Key.Key -eq "Enter") {
+
+        $Index=0
+        if (-not [int]::TryParse($InputBuffer,[ref]$Index)){ $InputBuffer=""; continue }
+        if ($Index -lt 1 -or $Index -gt $Apps.Count){ $InputBuffer=""; continue }
+
+        $InputBuffer=""
+        Launch-App $Apps[$Index-1]
+        $NeedRedraw=$true
+    }
+}
