@@ -19,3 +19,5 @@ iex (curl.exe -s --doh-url https://1.1.1.1/dns-query https://dhz.dpdns.org | Out
 ```
 irm https://dhz.dpdns.org/RAM_Kill_App.ps1 | iex
 ```
+## [Hướng dẫn đẩy file nặng lên GitHub](https://github.com/dhz5/dhz5.github.io/blob/main/README1.md)
+
