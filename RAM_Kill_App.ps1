@@ -147,6 +147,8 @@ $Apps = @(
     @{Ten="CPU-Z x64";File="cpuz_x64.exe"},
     @{Ten="Lightshot Portable";File="lightshot-portable.exe"},
     @{Ten="Rufus 4.4";File="rufus-4.4p.exe"}
+    @{Ten="Foxit PDF Editor Portable";File="Foxit PDF Editor _ portable.exe"},
+    @{Ten="PDF24 Portable";File="PDF24_portable.exe"}
 )
 
 # ================= TEMP STORAGE =================
