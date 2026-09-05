@@ -590,7 +590,7 @@ export const categories: Category[] = [
       {
         id: "phet",
         title: "PhET – mô phỏng Vật lý, Toán, Hóa học",
-        command: "phet.colorado.edu/vi/",
+        command: "https://phet.colorado.edu/vi/",
         description: "Bộ mô phỏng tương tác miễn phí từ Đại học Colorado: vật lý, toán học, hóa học, sinh học. Hỗ trợ tiếng Việt, dùng tốt cho học sinh/giáo viên.",
         usage: "Vào phet.colorado.edu/vi/ → chọn môn → chạy mô phỏng trực tiếp trên trình duyệt",
         type: "web",
