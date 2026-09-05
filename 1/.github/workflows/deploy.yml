@@ -7,14 +7,12 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main branch
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -24,14 +22,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './1/package-lock.json'
 
-      - name: Install and Build
+      - name: Install and Build Dự án 1
         run: |
           cd 1
           npm ci
           npm run build
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy Dự án 1 vào thư mục con trên gh-pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: 1/dist
           branch: gh-pages
+          target-folder: 1 # QUAN TRỌNG: Chỉ đẩy code vào đúng thư mục 1 trên nhánh gh-pages, giữ nguyên gốc Repo
