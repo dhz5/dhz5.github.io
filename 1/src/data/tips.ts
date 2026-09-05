@@ -284,7 +284,7 @@ export const categories: Category[] = [
       {
         id: "xcopy",
         title: "Copy file sang máy khác bằng CMD",
-        command: "xcopy C:\\source \\\\\\\\MayKhac\\share /E /H /C /I",
+        command: "xcopy C:\\source \\\\MayKhac\\share /E /H /C /I",
         description: "Sao chép file/thư mục qua mạng nội bộ, giữ nguyên cấu trúc thư mục, bao gồm file ẩn và hệ thống.",
         usage: "xcopy [nguồn] [đích] /E (copy subfolder) /H (file ẩn) /C (bỏ qua lỗi) /I (nếu đích chưa tồn tại)",
         type: "cmd",
@@ -293,9 +293,9 @@ export const categories: Category[] = [
       {
         id: "psexec",
         title: "Remote máy khác bằng CMD (PsExec)",
-        command: "psexec \\\\\\\\TenMay -u admin -p pass cmd",
+        command: "psexec \\\\TenMay -u admin -p pass cmd",
         description: "PsExec (thuộc Sysinternals) cho phép chạy lệnh trên máy tính khác qua mạng nội bộ mà không cần phần mềm remote riêng.",
-        usage: "Tải Sysinternals Suite → dùng psexec \\\\\\\\IP -u Username -p Password cmd",
+        usage: "Tải Sysinternals Suite → dùng psexec \\\\IP -u Username -p Password cmd",
         type: "cmd",
         tags: ["remote", "psexec", "sysinternals", "mạng nội bộ"],
       },
