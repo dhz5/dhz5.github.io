@@ -370,7 +370,7 @@ export const categories: Category[] = [
         command: "https://ngrok.com",
         description: "Công cụ tạo URL public trỏ vào localhost của bạn — share web đang dev cho client xem, test webhook, thay thế VPN đơn giản.",
         usage: "Đăng ký ngrok.com → tải CLI → ngrok http 3000 → dùng URL được cấp",
-        type: "app",
+        type: "web",
         tags: ["ngrok", "localhost", "tunnel", "internet", "vpn"],
       },
       {
