@@ -738,7 +738,7 @@ export const categories: Category[] = [
       {
         id: "vnrom-bypass",
         title: "Bỏ qua setup điện thoại Android (FRP Bypass)",
-        command: "vnrom.net/bypass/",
+        command: "https://vnrom.net/bypass/",
         description: "Công cụ bypass Google FRP (Factory Reset Protection) và bỏ qua màn hình thiết lập ban đầu trên Android. Hữu ích khi quên tài khoản Google.",
         usage: "Vào vnrom.net/bypass/ → chọn đúng hãng máy → làm theo hướng dẫn từng bước",
         type: "web",
