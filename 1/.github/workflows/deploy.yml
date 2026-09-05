@@ -1,12 +1,10 @@
-name: Deploy Project 1
+name: Deploy GitHub Pages
 
 on:
   push:
     branches:
       - main
-    paths:
-      - "1/**"
-      - ".github/workflows/deploy-1.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -18,41 +16,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: 1/package-lock.json
+          node-version: 22
 
-      - name: Install dependencies
-        working-directory: 1
-        run: npm ci
+      - name: Install Project 1 dependencies
+        working-directory: ./1
+        run: npm install
 
-      - name: Build
-        working-directory: 1
+      - name: Build Project 1
+        working-directory: ./1
         run: npm run build
 
-      - name: Prepare deployment
+      - name: Prepare GitHub Pages
         run: |
-          mkdir -p deploy/1
-          cp -r 1/dist/* deploy/1/
+          mkdir -p deploy
+          
+          # Copy website cũ
+          cp -r . deploy/
+          
+          # Xóa các file không cần thiết khỏi bản deploy
+          rm -rf deploy/.git
+          rm -rf deploy/.github
+          rm -rf deploy/1/node_modules
+          rm -rf deploy/1/dist
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+          # Thay nội dung /1 bằng bản đã build
+          rm -rf deploy/1
+          mkdir -p deploy/1
+          cp -r 1/dist/. deploy/1/
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: deploy
+          path: ./deploy
 
   deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
     environment:
       name: github-pages
-
-    runs-on: ubuntu-latest
-
-    needs: build
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Deploy to GitHub Pages
