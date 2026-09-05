@@ -471,7 +471,7 @@ export const categories: Category[] = [
       {
         id: "bios-pw",
         title: "Reset mật khẩu BIOS",
-        command: "bios-pw.org",
+        command: "https://bios-pw.org/",
         description: "Website giải mã mật khẩu BIOS bằng cách nhập mã lỗi hiển thị khi nhập sai password. Nhấn Ctrl + Enter sau khi nhập mã.",
         usage: "Nhập sai pass BIOS 3 lần → ghi mã lỗi → vào bios-pw.org → nhập mã → Ctrl + Enter",
         type: "web",
