@@ -3,10 +3,12 @@ name: Deploy Vite Site
 on:
   push:
     branches:
-      - main # Chạy khi bạn push code lên nhánh main
+      - main
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build-and-deploy:
@@ -20,7 +22,7 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: './1/package-lock.json' # Trỏ vào thư mục 1 của bạn
+          cache-dependency-path: './1/package-lock.json'
 
       - name: Install and Build
         run: |
@@ -31,5 +33,5 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: 1/dist # Đẩy thư mục dist sau khi build lên
-          branch: gh-pages # Đẩy vào nhánh phụ này để chạy web
+          folder: 1/dist
+          branch: gh-pages
