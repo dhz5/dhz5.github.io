@@ -367,7 +367,7 @@ export const categories: Category[] = [
       {
         id: "ngrok",
         title: "Ngrok – tạo đường hầm localhost ra internet",
-        command: "ngrok.com",
+        command: "https://ngrok.com",
         description: "Công cụ tạo URL public trỏ vào localhost của bạn — share web đang dev cho client xem, test webhook, thay thế VPN đơn giản.",
         usage: "Đăng ký ngrok.com → tải CLI → ngrok http 3000 → dùng URL được cấp",
         type: "app",
@@ -376,7 +376,7 @@ export const categories: Category[] = [
       {
         id: "snapdrop",
         title: "Snapdrop – gửi file qua WiFi mọi thiết bị",
-        command: "snapdrop.net",
+        command: "https://snapdrop.net",
         description: "Web app gửi file không giới hạn dung lượng qua WiFi cục bộ giữa mọi thiết bị (PC, Android, iOS, Mac) không cần cài app.",
         usage: "Mở snapdrop.net trên cả hai thiết bị cùng mạng WiFi → click biểu tượng thiết bị → gửi file",
         type: "web",
@@ -406,7 +406,7 @@ export const categories: Category[] = [
       {
         id: "crt-subdomain",
         title: "Tìm subdomain của tên miền",
-        command: "crt.sh/?q=%.google.com",
+        command: "https://crt.sh/?q=%.google.com",
         description: "Tra cứu Certificate Transparency logs để tìm tất cả subdomain của một website. Hữu ích cho pentest/OSINT.",
         usage: "Truy cập crt.sh/?q=%.tenmiencuaban.com hoặc dùng crt.name/v1/search?apex=google.com",
         type: "web",
@@ -509,7 +509,7 @@ export const categories: Category[] = [
       {
         id: "nirsoft",
         title: "NirSoft – kho tiện ích Windows miễn phí",
-        command: "nirsoft.net",
+        command: "https://nirsoft.net",
         description: "Hơn 200 tiện ích nhỏ miễn phí: MailPassView (xem pass mail), ChromePass, WifiInfoView, ProductKey,... Tuyệt vời cho IT admin.",
         usage: "Vào nirsoft.net → tìm công cụ cần → tải trực tiếp, không cần cài đặt",
         type: "web",
@@ -518,7 +518,7 @@ export const categories: Category[] = [
       {
         id: "majorgeeks",
         title: "MajorGeeks – tải phần mềm uy tín",
-        command: "majorgeeks.com",
+        command: "https://majorgeeks.com",
         description: "Kho phần mềm IT uy tín, an toàn — driver, tiện ích hệ thống, bảo mật, không quảng cáo rác hoặc bundle phần mềm lạ.",
         usage: "Tìm kiếm phần mềm trên majorgeeks.com → tải bản mới nhất",
         type: "web",
@@ -527,7 +527,7 @@ export const categories: Category[] = [
       {
         id: "temp-mail",
         title: "Email tạm thời miễn phí",
-        command: "temp-mail.org",
+        command: "https://temp-mail.org",
         description: "Tạo email ảo dùng một lần để đăng ký dịch vụ mà không cần tài khoản thật. Email tự xóa sau thời gian nhất định.",
         usage: "Vào temp-mail.org → nhận địa chỉ email ngẫu nhiên → dùng để đăng ký → nhận mail xác nhận",
         type: "web",
@@ -536,7 +536,7 @@ export const categories: Category[] = [
       {
         id: "smsfast",
         title: "Số điện thoại ảo (OTP online)",
-        command: "smsfast.com/free-numbers",
+        command: "https://smsfast.com/free-numbers",
         description: "Nhận SMS xác minh OTP qua số điện thoại ảo của nhiều quốc gia — đăng ký dịch vụ mà không dùng số thật.",
         usage: "Vào smsfast.com/free-numbers → chọn số → dùng đăng ký → F5 để nhận SMS",
         type: "web",
@@ -545,7 +545,7 @@ export const categories: Category[] = [
       {
         id: "mp3cut",
         title: "Cắt và chỉnh sửa âm thanh online",
-        command: "mp3cut.net",
+        command: "https://mp3cut.net",
         description: "Cắt, ghép, fade in/out, điều chỉnh âm lượng file audio trực tuyến. Hỗ trợ MP3, WAV, OGG, AAC,... không cần cài phần mềm.",
         usage: "Vào mp3cut.net → upload file → chọn đoạn → Export",
         type: "web",
@@ -554,7 +554,7 @@ export const categories: Category[] = [
       {
         id: "file-converter",
         title: "Chuyển đổi định dạng file online",
-        command: "file-converter.io",
+        command: "https://file-converter.io",
         description: "Chuyển đổi giữa hàng trăm định dạng file: PDF, Word, Excel, ảnh, video, audio,... hoàn toàn online, miễn phí.",
         usage: "Vào file-converter.io → upload file → chọn định dạng đầu ra → Convert",
         type: "web",
@@ -563,7 +563,7 @@ export const categories: Category[] = [
       {
         id: "textfrom",
         title: "Copy text từ web chặn copy",
-        command: "textfrom.website/link",
+        command: "https://textfrom.website/link",
         description: "Bypass trang web chặn chuột phải / chặn Ctrl+C. Dán URL trang muốn copy vào sau textfrom.website/ để đọc và copy nội dung.",
         usage: "textfrom.website/https://tenwebmuoncopy.com → nội dung hiện ra có thể copy",
         type: "web",
@@ -572,7 +572,7 @@ export const categories: Category[] = [
       {
         id: "fake-name",
         title: "Tạo thông tin giả (tên, địa chỉ, thẻ)",
-        command: "fakenamegenerator.com",
+        command: "https://fakenamegenerator.com",
         description: "Tạo danh tính giả hoàn chỉnh: họ tên, địa chỉ, email, số thẻ tín dụng test (không dùng để gian lận) — hữu ích khi test form đăng ký.",
         usage: "Vào fakenamegenerator.com → chọn quốc gia → Generate → dùng thông tin để đăng ký thử",
         type: "web",
