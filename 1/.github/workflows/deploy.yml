@@ -1,9 +1,10 @@
-name: Deploy GitHub Pages
+name: Deploy Website
 
 on:
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
@@ -11,62 +12,67 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      # =========================
+      # Build project 1
+      # =========================
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: 1/package-lock.json
 
-      - name: Install Project 1 dependencies
+      - name: Install dependencies
         working-directory: ./1
         run: npm install
 
-      - name: Build Project 1
+      - name: Build React project
         working-directory: ./1
         run: npm run build
 
-      - name: Prepare GitHub Pages
+      # =========================
+      # Prepare GitHub Pages
+      # =========================
+      - name: Prepare Pages
         run: |
-          mkdir -p deploy
-          
+          mkdir -p ./_site/1
+
           # Copy website cũ
-          cp -r . deploy/
-          
-          # Xóa các file không cần thiết khỏi bản deploy
-          rm -rf deploy/.git
-          rm -rf deploy/.github
-          rm -rf deploy/1/node_modules
-          rm -rf deploy/1/dist
+          cp ./index.html ./_site/index.html
 
-          # Thay nội dung /1 bằng bản đã build
-          rm -rf deploy/1
-          mkdir -p deploy/1
-          cp -r 1/dist/. deploy/1/
+          # Copy project React đã build
+          cp -r ./1/dist/* ./_site/1/
 
-      - name: Setup GitHub Pages
+      - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: ./deploy
+          path: ./_site
 
   deploy:
-    runs-on: ubuntu-latest
-    needs: build
-
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
+    runs-on: ubuntu-latest
+
+    needs: build
+
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
