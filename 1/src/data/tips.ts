@@ -581,7 +581,7 @@ export const categories: Category[] = [
       {
         id: "osint4all",
         title: "OSINT4All – tổng hợp công cụ trinh sát",
-        command: "start.me/p/L1rEYQ/osint4all",
+        command: "https://start.me/p/L1rEYQ/osint4all",
         description: "Trang tổng hợp hàng trăm công cụ OSINT (Open Source Intelligence): tìm người, kiểm tra email, tra cứu domain, ảnh reverse search,...",
         usage: "Truy cập start.me/p/L1rEYQ/osint4all → bookmark lại để dùng dần",
         type: "web",
