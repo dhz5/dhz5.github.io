@@ -120,16 +120,56 @@ function TipCard({ tip, q, cat }: { tip: Tip; q: string; cat: Category }) {
 
           {/* Command block(s) */}
           {tip.command && (
-            <div className="rounded-lg bg-gray-900/80 border border-gray-700 overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-700 bg-gray-900">
-                <span className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">lệnh</span>
-                <CopyBtn text={tip.command} />
-              </div>
-              <pre className={`px-3 py-2.5 text-sm font-mono ${cat.color} overflow-x-auto whitespace-pre-wrap break-all`}>
-                {tip.command}
-              </pre>
-            </div>
-          )}
+  tip.type === "web" ? (
+    <a
+      href={tip.command}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="block rounded-lg bg-gray-900/80 border border-gray-700 overflow-hidden hover:border-sky-500/50 hover:bg-gray-900 transition-all group"
+    >
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-700 bg-gray-900">
+        <span className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">
+          website
+        </span>
+
+        <svg
+          className="w-3.5 h-3.5 text-gray-500 group-hover:text-sky-400 transition-colors"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+          />
+        </svg>
+      </div>
+
+      <div className="px-3 py-2.5 text-sm font-mono text-sky-400 group-hover:text-sky-300 break-all">
+        {highlight(tip.command, q)}
+      </div>
+    </a>
+  ) : (
+    <div className="rounded-lg bg-gray-900/80 border border-gray-700 overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-700 bg-gray-900">
+        <span className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">
+          lệnh
+        </span>
+        <CopyBtn text={tip.command} />
+      </div>
+
+      <pre
+        className={`px-3 py-2.5 text-sm font-mono ${cat.color} overflow-x-auto whitespace-pre-wrap break-all`}
+      >
+        {tip.command}
+      </pre>
+    </div>
+  )
+)}
+
 
           {tip.commands && (
             <div className="space-y-2">
