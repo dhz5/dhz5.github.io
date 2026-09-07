@@ -48,6 +48,8 @@ jobs:
       - name: Prepare Pages
         run: |
           mkdir -p ./_site/1
+          mkdir -p ./_site/old
+          mkdir -p ./_site/vnrom.net
 
           # Copy website cũ
           cp ./index.html ./_site/index.html
