@@ -55,6 +55,12 @@ jobs:
           # Copy project React đã build
           cp -r ./1/dist/* ./_site/1/
 
+          # Folder old
+          cp -r ./old/* ./_site/old/
+
+          # folder vnrom.net
+          cp -r ./vnrom.net/* ./_site/vnrom.net/
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
