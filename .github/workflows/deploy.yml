@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -51,23 +51,19 @@ jobs:
           mkdir -p ./_site/old
           mkdir -p ./_site/vnrom.net
 
-          # Copy website cũ
           cp ./index.html ./_site/index.html
 
-          # Copy project React đã build
           cp -r ./1/dist/* ./_site/1/
 
-          # Folder old
           cp -r ./old/* ./_site/old/
 
-          # folder vnrom.net
           cp -r ./vnrom.net/* ./_site/vnrom.net/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./_site
 
