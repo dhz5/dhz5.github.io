@@ -25,9 +25,9 @@ irm https://dhz.dpdns.org/RAM_Kill_App.ps1 | iex
 
 Lệnh: diskutil addPartition disk0s11 JHFS+ macOS_chip_Apple 100g
 
-## VD: Trống sau disk0s11
+### VD: Trống sau disk0s11
 
-Bước 1: Check disk
+### Bước 1: Check disk
 
 ```bash
 diskutil list
@@ -63,7 +63,7 @@ diskutil list
 </pre>
 
 
-Bước 2: Chạy lệnh tạo trong đó: `JHFS+` là định dạng, `macOS_chip_Apple` là tên, `100g` là dung lượng muốn tạo.
+### Bước 2: Chạy lệnh tạo trong đó: `JHFS+` là định dạng, `macOS_chip_Apple` là tên, `100g` là dung lượng muốn tạo.
 
 ```bash
 diskutil addPartition disk0s11 JHFS+ macOS_chip_Apple 100g
