@@ -68,3 +68,50 @@ diskutil list
 ```bash
 diskutil addPartition disk0s11 JHFS+ macOS_chip_Apple 100g
 ```
+## Hướng Dẫn Tải Và Tạo Bộ Cài USB macOS
+
+> ⚠️ **Lưu ý quan trọng:** Hãy sao lưu (Backup) toàn bộ dữ liệu trên máy tính trước khi thực hiện. Nên sử dụng USB 3.0 hoặc ổ cứng SSD rời để quá trình diễn ra nhanh nhất.
+
+---
+
+### 1. Link Tải Bộ Cài macOS
+Bạn có thể tải trực tiếp file cài đặt các phiên bản macOS chính thức từ Apple tại đường link sau:
+* **Link tải:** [Mr. Macintosh macOS Installer Database](https://mrmacintosh.com/macos-tahoe-full-installer-database-download-directly-from-apple/)
+
+---
+
+### 2. Định Dạng USB (Format)
+Trước khi tạo bộ cài, bạn cần định dạng lại USB bằng công cụ **Disk Utility**:
+1. Nhấn `Command + Space`, gõ **Disk Utility** và nhấn `Enter`.
+2. Ở góc trái trên, chọn **View** -> **Show All Devices**.
+3. Chọn đúng tên ổ USB của bạn ở danh sách bên trái.
+4. Nhấn nút **Erase** ở thanh công cụ phía trên.
+5. Thiết lập các thông số sau:
+   * **Name:** Đặt tên chính xác là `MyVolume` (Lưu ý viết hoa đúng chữ M và V).
+   * **Format:** Chọn `Mac OS Extended (Journaled)`.
+6. Nhấn **Erase** để hoàn tất định dạng.
+
+---
+
+### 3. Cài Đặt File Bộ Cài Vào Ứng Dụng
+1. Mở file `.pkg` hoặc tệp `.dmg` vừa tải về ở Bước 1.
+2. Tiến hành chạy file cài đặt (Nhấn **Next**... theo hướng dẫn trên màn hình) để giải nén bộ cài vào thư mục **Applications** (Ứng dụng) của máy Mac.
+
+---
+
+### 4. Chạy Lệnh Tạo Bộ Cài Qua Terminal
+1. Nhấn `Command + Space`, gõ **Terminal** và nhấn `Enter` để mở cửa sổ dòng lệnh.
+2. Chuyển sang quyền quản trị cao nhất (Root) bằng lệnh:
+   ```bash
+   sudo su -
+   ```
+   *Nhập mật khẩu máy tính của bạn và nhấn `Enter` (khi nhập mật khẩu ký tự sẽ ẩn đi, bạn cứ gõ bình thường)*.
+
+3. Copy và dán câu lệnh tạo bộ cài tương ứng với phiên bản bạn muốn cài (Ví dụ dưới đây dành cho **macOS Ventura**):
+   ```bash
+   sudo /Applications/Install\ macOS\ Ventura.app/Contents/Resources/createinstallmedia --volume /Volumes/MyVolume
+   ```
+   *(Nếu bạn cài phiên bản khác như Sonoma hay Monterey, hãy thay đổi tên file `Install\ macOS\ ...` cho đúng với file đang có trong thư mục Applications của bạn)*.
+
+4. Nhấn `Enter`, hệ thống hỏi tiếp thì gõ chữ `Y` rồi nhấn `Enter` để xác nhận.
+5. Chờ Terminal chạy đạt 100% và báo thành công là bạn đã có một USB cài đặt macOS.
