@@ -119,7 +119,7 @@ export const categories: Category[] = [
         description: "Mở Resource Monitor xem chi tiết CPU, RAM, Disk, Network theo từng process. Dùng để tìm file/process đang bị lock (không xóa/gỡ được).",
         usage: "Win + R → resmon → tab Disk/CPU → tìm process dùng file → kết thúc process → thử xóa lại",
         type: "run",
-        tags: ["resource", "process", "file bị lock", "monitor"],
+        tags: ["resource", "process", "file bị lock", "monitor","xóa file"],
       },
       {
         id: "sfc-scannow",
