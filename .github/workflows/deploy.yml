@@ -67,6 +67,7 @@ jobs:
           mkdir -p ./_site/1
           mkdir -p ./_site/old
           mkdir -p ./_site/vnrom.net
+          mkdir -p ./_site/o
 
           echo "Copying root index.html..."
           cp ./index.html ./_site/index.html
@@ -79,6 +80,9 @@ jobs:
 
           echo "Copying vnrom.net..."
           cp -r ./vnrom.net/. ./_site/vnrom.net/
+
+          echo "Check office + onedrive => Go office + onedrive"
+          cp -r ./o/. ./_site/o/
 
           echo "Final _site structure:"
           find ./_site -maxdepth 3 -type f | sort
