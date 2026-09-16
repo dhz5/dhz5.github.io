@@ -1,0 +1,856 @@
+# ================= FORCE TLS 1.2 + OPTIMIZE =================
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    [Net.ServicePointManager]::DefaultConnectionLimit = 1024
+    [Net.ServicePointManager]::Expect100Continue = $false
+    [Net.ServicePointManager]::UseNagleAlgorithm = $false
+} catch {}
+
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$Host.UI.RawUI.WindowTitle = "APP TEST SANDBOX (GITHUB RAW REFS)"
+
+Remove-Item "$env:USERPROFILE\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt" -Force -ErrorAction SilentlyContinue
+
+#Requires -Version 5.1
+#Requires -RunAsAdministrator
+
+# ===== CAU HINH =====
+$Script:OfficeInfo = $null
+$Script:OneDriveInfo = $null
+$Script:RunningOfficeApps = $null
+
+# ===== KIEM TRA OFFICE =====
+function Get-OfficeInfo {
+    $officeProducts = @()
+    
+    $registryPaths = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    
+    foreach ($path in $registryPaths) {
+        try {
+            $products = Get-ItemProperty $path -ErrorAction SilentlyContinue | 
+                Where-Object { 
+                    $_.DisplayName -match 'Microsoft (Office|365|Word|Excel|PowerPoint|Outlook|OneNote|Access|Visio|Project)' 
+                }
+            
+            foreach ($product in $products) {
+                $officeProducts += [PSCustomObject]@{
+                    TenSanPham = $product.DisplayName
+                    PhienBan = $product.DisplayVersion
+                    NhaPhatHanh = $product.Publisher
+                    LenhGoCai = $product.UninstallString
+                    QuietUninstall = $product.QuietUninstallString
+                }
+            }
+        } catch {
+            # Bo qua loi
+        }
+    }
+    
+    $officeProducts = $officeProducts | Sort-Object TenSanPham -Unique
+    
+    return $officeProducts
+}
+
+# ===== KIEM TRA TIEN TRINH OFFICE =====
+function Get-OfficeProcesses {
+    $officeApps = @(
+        @{Name='WINWORD'; DisplayName='Word'},
+        @{Name='EXCEL'; DisplayName='Excel'},
+        @{Name='POWERPNT'; DisplayName='PowerPoint'},
+        @{Name='OUTLOOK'; DisplayName='Outlook'},
+        @{Name='ONENOTE'; DisplayName='OneNote'},
+        @{Name='MSACCESS'; DisplayName='Access'},
+        @{Name='MSPUB'; DisplayName='Publisher'},
+        @{Name='VISIO'; DisplayName='Visio'},
+        @{Name='WINPROJ'; DisplayName='Project'}
+    )
+    
+    $runningProcesses = @()
+    
+    foreach ($app in $officeApps) {
+        $processes = Get-Process -Name $app.Name -ErrorAction SilentlyContinue
+        
+        if ($processes) {
+            foreach ($proc in $processes) {
+                $windowTitle = $proc.MainWindowTitle
+                if ([string]::IsNullOrWhiteSpace($windowTitle)) {
+                    $windowTitle = "(Khong co cua so)"
+                }
+                
+                $runningProcesses += [PSCustomObject]@{
+                    TenUngDung = $app.DisplayName
+                    ProcessName = $app.Name
+                    PID = $proc.Id
+                    CuaSo = $windowTitle
+                    BoNho_MB = [math]::Round($proc.WorkingSet64 / 1MB, 2)
+                }
+            }
+        }
+    }
+    
+    return $runningProcesses
+}
+
+# ===== KIEM TRA ONEDRIVE =====
+function Get-OneDriveInfo {
+    $oneDriveInfo = @{
+        DangChay = $false
+        DangDongBo = $false
+        DaCaiDat = $false
+        TaiKhoan = @()
+        ThuMucDongBo = @()
+        ProcessInfo = @()
+    }
+    
+    # Kiem tra tien trinh
+    $processes = Get-Process -Name 'OneDrive' -ErrorAction SilentlyContinue
+    if ($processes) {
+        $oneDriveInfo.DangChay = $true
+        $oneDriveInfo.DaCaiDat = $true
+        foreach ($proc in $processes) {
+            $oneDriveInfo.ProcessInfo += [PSCustomObject]@{
+                PID = $proc.Id
+                Path = $proc.Path
+                BoNho_MB = [math]::Round($proc.WorkingSet64 / 1MB, 2)
+            }
+        }
+    }
+    
+    # Kiem tra OneDrive da cai dat (khong chay)
+    $oneDriveSetupPaths = @(
+        "$env:SystemRoot\System32\OneDriveSetup.exe",
+        "$env:SystemRoot\SysWOW64\OneDriveSetup.exe",
+        "$env:LocalAppData\Microsoft\OneDrive\OneDriveSetup.exe"
+    )
+    
+    foreach ($path in $oneDriveSetupPaths) {
+        if (Test-Path $path) {
+            $oneDriveInfo.DaCaiDat = $true
+            break
+        }
+    }
+    
+    # Kiem tra tai khoan OneDrive
+    $oneDriveRegPath = 'HKCU:\Software\Microsoft\OneDrive\Accounts'
+    if (Test-Path $oneDriveRegPath) {
+        $accounts = Get-ChildItem $oneDriveRegPath -ErrorAction SilentlyContinue
+        
+        foreach ($account in $accounts) {
+            try {
+                $accountProps = Get-ItemProperty $account.PSPath -ErrorAction SilentlyContinue
+                $email = $accountProps.UserEmail
+                $userFolder = $accountProps.UserFolder
+                
+                if ($email -or $userFolder) {
+                    $oneDriveInfo.TaiKhoan += [PSCustomObject]@{
+                        Ten = $account.PSChildName
+                        Email = if ($email) { $email } else { "(Khong co)" }
+                        ThuMuc = if ($userFolder) { $userFolder } else { "(Khong co)" }
+                    }
+                    
+                    if ($userFolder -and (Test-Path $userFolder)) {
+                        $oneDriveInfo.ThuMucDongBo += $userFolder
+                    }
+                }
+            } catch {
+                # Bo qua loi
+            }
+        }
+    }
+    
+    # Kiem tra hoat dong dong bo neu dang chay
+    if ($oneDriveInfo.DangChay) {
+        try {
+            $initialIO = Get-Process -Name 'OneDrive' -ErrorAction SilentlyContinue | 
+                Measure-Object -Property ReadOperationCount, WriteOperationCount -Sum
+            
+            if ($initialIO) {
+                $initialRead = $initialIO[0].Sum
+                $initialWrite = $initialIO[1].Sum
+                
+                Start-Sleep -Seconds 3
+                
+                $finalIO = Get-Process -Name 'OneDrive' -ErrorAction SilentlyContinue | 
+                    Measure-Object -Property ReadOperationCount, WriteOperationCount -Sum
+                
+                if ($finalIO) {
+                    $finalRead = $finalIO[0].Sum
+                    $finalWrite = $finalIO[1].Sum
+                    
+                    $readOps = $finalRead - $initialRead
+                    $writeOps = $finalWrite - $initialWrite
+                    
+                    if ($readOps -gt 50 -or $writeOps -gt 50) {
+                        $oneDriveInfo.DangDongBo = $true
+                    }
+                }
+            }
+        } catch {
+            # Bo qua loi
+        }
+    }
+    
+    return $oneDriveInfo
+}
+
+# ===== HIEN THI KET QUA KIEM TRA =====
+function Show-InitialScan {
+    Clear-Host
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "     DANG KIEM TRA HE THONG - VUI LONG DOI...                  " -ForegroundColor Cyan
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Kiem tra Office
+    Write-Host "[*] Dang kiem tra Office..." -ForegroundColor Yellow
+    $Script:OfficeInfo = Get-OfficeInfo
+    Write-Host "[*] Dang kiem tra ung dung Office dang chay..." -ForegroundColor Yellow
+    $Script:RunningOfficeApps = Get-OfficeProcesses
+    
+    # Kiem tra OneDrive
+    Write-Host "[*] Dang kiem tra OneDrive..." -ForegroundColor Yellow
+    $Script:OneDriveInfo = Get-OneDriveInfo
+    
+    # Hien thi ket qua
+    Clear-Host
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "              KET QUA KIEM TRA HE THONG                        " -ForegroundColor Cyan
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # OFFICE
+    Write-Host "----------------------------------------------------------------" -ForegroundColor White
+    Write-Host "  MICROSOFT OFFICE / 365                                       " -ForegroundColor Yellow
+    Write-Host "----------------------------------------------------------------" -ForegroundColor White
+    
+    if ($Script:OfficeInfo.Count -gt 0) {
+        foreach ($product in $Script:OfficeInfo) {
+            Write-Host "  [+] $($product.TenSanPham)" -ForegroundColor Green
+            Write-Host "      Phien ban: $($product.PhienBan)" -ForegroundColor Cyan
+        }
+    } else {
+        Write-Host "  [-] Khong tim thay Office" -ForegroundColor Red
+    }
+    
+    Write-Host ""
+    Write-Host "  Ung dung Office dang chay:" -ForegroundColor Yellow
+    if ($Script:RunningOfficeApps.Count -gt 0) {
+        foreach ($app in $Script:RunningOfficeApps) {
+            Write-Host "  [!] $($app.TenUngDung) (PID: $($app.PID)) - $($app.CuaSo)" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  [+] Khong co ung dung nao dang chay" -ForegroundColor Green
+    }
+    
+    Write-Host ""
+    
+    # ONEDRIVE
+    Write-Host "----------------------------------------------------------------" -ForegroundColor White
+    Write-Host "  ONEDRIVE                                                     " -ForegroundColor Yellow
+    Write-Host "----------------------------------------------------------------" -ForegroundColor White
+    
+    if ($Script:OneDriveInfo.DaCaiDat) {
+        if ($Script:OneDriveInfo.DangChay) {
+            Write-Host "  [+] OneDrive dang chay" -ForegroundColor Green
+            
+            if ($Script:OneDriveInfo.DangDongBo) {
+                Write-Host "  [!] DANG DONG BO DU LIEU" -ForegroundColor Red
+            } else {
+                Write-Host "  [+] Khong dang dong bo" -ForegroundColor Green
+            }
+            
+            if ($Script:OneDriveInfo.TaiKhoan.Count -gt 0) {
+                Write-Host ""
+                Write-Host "  Tai khoan:" -ForegroundColor Yellow
+                foreach ($acc in $Script:OneDriveInfo.TaiKhoan) {
+                    Write-Host "    - $($acc.Email)" -ForegroundColor Cyan
+                }
+            }
+            
+            if ($Script:OneDriveInfo.ThuMucDongBo.Count -gt 0) {
+                Write-Host ""
+                Write-Host "  Thu muc dong bo:" -ForegroundColor Yellow
+                foreach ($folder in $Script:OneDriveInfo.ThuMucDongBo) {
+                    Write-Host "    - $folder" -ForegroundColor Cyan
+                }
+            }
+        } else {
+            Write-Host "  [+] OneDrive da cai dat nhung khong chay" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  [-] OneDrive khong duoc cai dat" -ForegroundColor Red
+    }
+    
+    Write-Host ""
+    Write-Host "----------------------------------------------------------------" -ForegroundColor Gray
+    Write-Host ""
+}
+
+# ===== HAM XAC NHAN =====
+function Get-UserConfirmation {
+    param([string]$Message)
+    
+    $response = Read-Host "$Message (Y/N)"
+    return $response -match '^[Yy]$'
+}
+
+# ===== DONG TIEN TRINH OFFICE =====
+function Stop-OfficeProcesses {
+    param([bool]$Force = $false)
+    
+    $processes = Get-OfficeProcesses
+    
+    if ($processes.Count -eq 0) {
+        return $true
+    }
+    
+    if (-not $Force) {
+        Write-Host "[*] Dang dong ung dung Office binh thuong..." -ForegroundColor Yellow
+        
+        foreach ($proc in $processes) {
+            try {
+                $process = Get-Process -Id $proc.PID -ErrorAction SilentlyContinue
+                if ($process) {
+                    $process.CloseMainWindow() | Out-Null
+                }
+            } catch {
+                # Bo qua loi
+            }
+        }
+        
+        Write-Host "[*] Cho 5 giay de ung dung dong..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 5
+        
+        $stillRunning = Get-OfficeProcesses
+        
+        if ($stillRunning.Count -gt 0) {
+            Write-Host "[!] Van con $($stillRunning.Count) tien trinh dang chay:" -ForegroundColor Yellow
+            foreach ($app in $stillRunning) {
+                Write-Host "  - $($app.TenUngDung) - $($app.CuaSo)" -ForegroundColor Yellow
+            }
+            
+            Write-Host ""
+            if (Get-UserConfirmation "Ban co muon BUOC DONG cac ung dung nay khong? (Co the MAT DU LIEU chua luu)") {
+                return Stop-OfficeProcesses -Force $true
+            } else {
+                return $false
+            }
+        } else {
+            Write-Host "[+] Da dong tat ca ung dung Office" -ForegroundColor Green
+            return $true
+        }
+    } else {
+        Write-Host "[*] Dang buoc dong tien trinh Office..." -ForegroundColor Yellow
+        
+        $officeApps = @('WINWORD', 'EXCEL', 'POWERPNT', 'OUTLOOK', 'ONENOTE', 'MSACCESS', 'MSPUB', 'VISIO', 'WINPROJ')
+        
+        foreach ($app in $officeApps) {
+            try {
+                Stop-Process -Name $app -Force -ErrorAction SilentlyContinue
+            } catch {
+                # Bo qua loi
+            }
+        }
+        
+        Start-Sleep -Seconds 2
+        
+        $stillRunning = Get-OfficeProcesses
+        if ($stillRunning.Count -eq 0) {
+            Write-Host "[+] Da buoc dong tat ca tien trinh Office" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "[-] Van khong the dong mot so tien trinh Office" -ForegroundColor Red
+            return $false
+        }
+    }
+}
+
+# ===== GO CAI DAT OFFICE =====
+function Uninstall-Office {
+    if ($Script:OfficeInfo.Count -eq 0) {
+        Write-Host "[-] Khong co Office de go cai dat" -ForegroundColor Red
+        return $false
+    }
+    
+    Write-Host ""
+    Write-Host "=== BAT DAU GO CAI DAT OFFICE ===" -ForegroundColor Cyan
+    Write-Host ""
+    
+    foreach ($product in $Script:OfficeInfo) {
+        Write-Host "[*] Dang go: $($product.TenSanPham)..." -ForegroundColor Yellow
+        
+        try {
+            $uninstallCmd = $null
+            
+            if ($product.QuietUninstall) {
+                $uninstallCmd = $product.QuietUninstall
+            } elseif ($product.LenhGoCai) {
+                $uninstallCmd = $product.LenhGoCai
+            }
+            
+            if ($uninstallCmd) {
+                if ($uninstallCmd -match '^"([^"]+)"\s*(.*)$') {
+                    $exe = $Matches[1]
+                    $args = $Matches[2]
+                } elseif ($uninstallCmd -match '^(\S+)\s*(.*)$') {
+                    $exe = $Matches[1]
+                    $args = $Matches[2]
+                } else {
+                    $exe = $uninstallCmd
+                    $args = ""
+                }
+                
+                $process = Start-Process -FilePath $exe -ArgumentList $args -Wait -PassThru -NoNewWindow
+                
+                if ($process.ExitCode -eq 0) {
+                    Write-Host "[+] Da go thanh cong: $($product.TenSanPham)" -ForegroundColor Green
+                } else {
+                    Write-Host "[!] Go cai dat hoan tat voi ma: $($process.ExitCode)" -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "[-] Khong tim thay lenh go cai dat cho: $($product.TenSanPham)" -ForegroundColor Red
+            }
+        } catch {
+            Write-Host "[-] Loi khi go $($product.TenSanPham): $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
+    
+    Write-Host ""
+    Write-Host "[*] Kiem tra lai sau khi go cai dat..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 3
+    $Script:OfficeInfo = Get-OfficeInfo
+    
+    if ($Script:OfficeInfo.Count -eq 0) {
+        Write-Host "[+] Office da duoc go cai dat hoan toan" -ForegroundColor Green
+        return $true
+    } else {
+        Write-Host "[!] Van con $($Script:OfficeInfo.Count) san pham Office" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# ===== DUNG ONEDRIVE =====
+function Stop-OneDrive {
+    param([bool]$OpenFolder = $false)
+    
+    if (-not $Script:OneDriveInfo.DangChay) {
+        Write-Host "[-] OneDrive khong chay" -ForegroundColor Red
+        return $true
+    }
+    
+    Write-Host "[*] Dang dung OneDrive..." -ForegroundColor Yellow
+    
+    try {
+        Stop-Process -Name 'OneDrive' -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        
+        $stillRunning = Get-Process -Name 'OneDrive' -ErrorAction SilentlyContinue
+        if (-not $stillRunning) {
+            Write-Host "[+] Da dung OneDrive thanh cong" -ForegroundColor Green
+            
+            if ($OpenFolder -and $Script:OneDriveInfo.ThuMucDongBo.Count -gt 0) {
+                foreach ($folder in $Script:OneDriveInfo.ThuMucDongBo) {
+                    if (Test-Path $folder) {
+                        Write-Host "[*] Mo thu muc: $folder" -ForegroundColor Cyan
+                        Start-Process explorer.exe -ArgumentList $folder
+                    }
+                }
+            }
+            
+            return $true
+        } else {
+            Write-Host "[-] Khong the dung OneDrive" -ForegroundColor Red
+            return $false
+        }
+    } catch {
+        Write-Host "[-] Loi khi dung OneDrive: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# ===== GO CAI DAT ONEDRIVE =====
+function Uninstall-OneDrive {
+    Write-Host ""
+    Write-Host "=== GO CAI DAT ONEDRIVE ===" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Tim uninstaller
+    $uninstallerPaths = @(
+        "$env:SystemRoot\System32\OneDriveSetup.exe",
+        "$env:SystemRoot\SysWOW64\OneDriveSetup.exe",
+        "$env:LocalAppData\Microsoft\OneDrive\OneDriveSetup.exe"
+    )
+    
+    $uninstaller = $null
+    foreach ($path in $uninstallerPaths) {
+        if (Test-Path $path) {
+            $uninstaller = $path
+            break
+        }
+    }
+    
+    if (-not $uninstaller) {
+        Write-Host "[-] Khong tim thay OneDriveSetup.exe de go cai dat" -ForegroundColor Red
+        return $false
+    }
+    
+    Write-Host "[*] Dang go cai dat OneDrive..." -ForegroundColor Yellow
+    
+    try {
+        $process = Start-Process -FilePath $uninstaller -ArgumentList '/uninstall' -Wait -PassThru -NoNewWindow
+        
+        if ($process.ExitCode -eq 0) {
+            Write-Host "[+] Da go cai dat OneDrive thanh cong" -ForegroundColor Green
+        } else {
+            Write-Host "[!] Go cai dat OneDrive hoan tat voi ma: $($process.ExitCode)" -ForegroundColor Yellow
+        }
+        
+        Start-Sleep -Seconds 2
+        
+        $stillExists = Get-Process -Name 'OneDrive' -ErrorAction SilentlyContinue
+        if (-not $stillExists) {
+            Write-Host "[+] Xac nhan: OneDrive da duoc go bo" -ForegroundColor Green
+            return $true
+        }
+        
+        return $false
+    } catch {
+        Write-Host "[-] Loi khi go cai dat OneDrive: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# ===== XU LY LUA CHON =====
+function Process-Choice {
+    param([int]$Choice)
+    
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Kiem tra Office dang chay truoc
+    if ($Script:RunningOfficeApps.Count -gt 0) {
+        Write-Host "[!] CANH BAO: Cac ung dung Office dang chay:" -ForegroundColor Red
+        foreach ($app in $Script:RunningOfficeApps) {
+            Write-Host "  - $($app.TenUngDung) - $($app.CuaSo)" -ForegroundColor Yellow
+        }
+        Write-Host ""
+        Write-Host "[!] Dong ung dung co the gay MAT DU LIEU chua luu!" -ForegroundColor Red
+        Write-Host ""
+        
+        if (-not (Get-UserConfirmation "Ban co muon tiep tuc va dong cac ung dung nay khong?")) {
+            Write-Host "[-] Da huy thao tac" -ForegroundColor Yellow
+            return
+        }
+        
+        Write-Host ""
+        if (-not (Stop-OfficeProcesses)) {
+            Write-Host ""
+            Write-Host "[-] Khong the dong ung dung Office. Huy thao tac" -ForegroundColor Red
+            return
+        }
+        Write-Host ""
+    }
+    
+    # Canh bao OneDrive dang dong bo
+    if ($Script:OneDriveInfo.DangChay -and $Script:OneDriveInfo.DangDongBo -and ($Choice -eq 1 -or $Choice -eq 2)) {
+        Write-Host "[!] CANH BAO: OneDrive dang DONG BO DU LIEU!" -ForegroundColor Red
+        Write-Host ""
+        if (-not (Get-UserConfirmation "Ban co chac chan muon dung OneDrive ngay bay gio?")) {
+            Write-Host "[-] Da huy thao tac" -ForegroundColor Yellow
+            return
+        }
+        Write-Host ""
+    }
+    
+    # Xac nhan cuoi cung
+    $confirmMessage = switch ($Choice) {
+        1 { 
+            if ($Script:OneDriveInfo.DangDongBo) {
+                "GO Office + DUNG OneDrive + MO THU MUC + GO OneDrive"
+            } else {
+                "GO Office + DUNG OneDrive + GO OneDrive"
+            }
+        }
+        2 { 
+            if ($Script:OneDriveInfo.DangDongBo) {
+                "GO Office + DUNG OneDrive + GO OneDrive"
+            } else {
+                "GO Office"
+            }
+        }
+        3 { "GO Office" }
+    }
+    
+    Write-Host "Ban da chon: $confirmMessage" -ForegroundColor Cyan
+    Write-Host ""
+    
+    if (-not (Get-UserConfirmation "XAC NHAN thuc hien thao tac nay?")) {
+        Write-Host "[-] Da huy thao tac" -ForegroundColor Yellow
+        return
+    }
+    
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Green
+    Write-Host "           BAT DAU THUC HIEN                                   " -ForegroundColor Green
+    Write-Host "================================================================" -ForegroundColor Green
+    
+    # Thuc hien theo lua chon
+    if ($Script:OneDriveInfo.DangDongBo) {
+        # TH1: OneDrive dang dong bo
+        switch ($Choice) {
+            1 {
+                # Go Office + Dung OneDrive + Mo thu muc + Go OneDrive
+                Write-Host ""
+                Write-Host "[*] Buoc 1/4: Go cai dat Office..." -ForegroundColor Yellow
+                Uninstall-Office
+                
+                Write-Host ""
+                Write-Host "[*] Buoc 2/4: Dung OneDrive..." -ForegroundColor Yellow
+                Stop-OneDrive -OpenFolder $false
+                
+                Write-Host ""
+                Write-Host "[*] Buoc 3/4: Mo thu muc OneDrive..." -ForegroundColor Yellow
+                if ($Script:OneDriveInfo.ThuMucDongBo.Count -gt 0) {
+                    foreach ($folder in $Script:OneDriveInfo.ThuMucDongBo) {
+                        if (Test-Path $folder) {
+                            Start-Process explorer.exe -ArgumentList $folder
+                            Write-Host "[*] Da mo: $folder" -ForegroundColor Cyan
+                        }
+                    }
+                }
+                
+                Write-Host ""
+                Write-Host "[*] Buoc 4/4: Go cai dat OneDrive..." -ForegroundColor Yellow
+                Uninstall-OneDrive
+            }
+            2 {
+                # Go Office + Dung OneDrive + Go OneDrive
+                Write-Host ""
+                Write-Host "[*] Buoc 1/3: Go cai dat Office..." -ForegroundColor Yellow
+                Uninstall-Office
+                
+                Write-Host ""
+                Write-Host "[*] Buoc 2/3: Dung OneDrive..." -ForegroundColor Yellow
+                Stop-OneDrive -OpenFolder $false
+                
+                Write-Host ""
+                Write-Host "[*] Buoc 3/3: Go cai dat OneDrive..." -ForegroundColor Yellow
+                Uninstall-OneDrive
+            }
+            3 {
+                # Chi go Office
+                Write-Host ""
+                Write-Host "[*] Go cai dat Office..." -ForegroundColor Yellow
+                Uninstall-Office
+            }
+        }
+    } else {
+        # TH2: OneDrive khong dang dong bo
+        switch ($Choice) {
+            1 {
+                # Go Office + Dung OneDrive + Go OneDrive
+                Write-Host ""
+                Write-Host "[*] Buoc 1/3: Go cai dat Office..." -ForegroundColor Yellow
+                Uninstall-Office
+                
+                if ($Script:OneDriveInfo.DangChay) {
+                    Write-Host ""
+                    Write-Host "[*] Buoc 2/3: Dung OneDrive..." -ForegroundColor Yellow
+                    Stop-OneDrive -OpenFolder $false
+                    
+                    Write-Host ""
+                    Write-Host "[*] Buoc 3/3: Go cai dat OneDrive..." -ForegroundColor Yellow
+                    Uninstall-OneDrive
+                } else {
+                    Write-Host ""
+                    Write-Host "[*] OneDrive khong chay, bo qua dung OneDrive" -ForegroundColor Yellow
+                    
+                    Write-Host ""
+                    Write-Host "[*] Buoc 3/3: Go cai dat OneDrive..." -ForegroundColor Yellow
+                    Uninstall-OneDrive
+                }
+            }
+            2 {
+                # Chi go Office
+                Write-Host ""
+                Write-Host "[*] Go cai dat Office..." -ForegroundColor Yellow
+                Uninstall-Office
+            }
+        }
+    }
+    
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Green
+    Write-Host "           HOAN TAT                                            " -ForegroundColor Green
+    Write-Host "================================================================" -ForegroundColor Green
+    Write-Host ""
+    
+    if ($Script:OneDriveInfo.ThuMucDongBo.Count -gt 0) {
+        Write-Host "[i] LUU Y: Du lieu OneDrive KHONG bi xoa, van con tai:" -ForegroundColor Cyan
+        foreach ($folder in $Script:OneDriveInfo.ThuMucDongBo) {
+            Write-Host "  - $folder" -ForegroundColor White
+        }
+        Write-Host ""
+    }
+}
+
+# ===== HIEN THI MENU =====
+function Show-Menu {
+    $hasOffice = $Script:OfficeInfo.Count -gt 0
+    $hasOneDrive = $Script:OneDriveInfo.DaCaiDat
+    
+    # Neu khong co gi ca
+    if (-not $hasOffice -and -not $hasOneDrive) {
+        Write-Host "================================================================" -ForegroundColor Cyan
+        Write-Host "              KHONG CO GI DE GO CAI DAT                        " -ForegroundColor Cyan
+        Write-Host "================================================================" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  [-] Khong tim thay Office hoac OneDrive tren he thong" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  0. Thoat" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "----------------------------------------------------------------" -ForegroundColor Gray
+        Write-Host ""
+        return
+    }
+    
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "              CHON THAO TAC THUC HIEN                          " -ForegroundColor Cyan
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    if ($Script:OneDriveInfo.DangDongBo) {
+        # TH1: OneDrive dang dong bo
+        Write-Host "  1. Go Office " -NoNewline -ForegroundColor White
+        if ($Script:OfficeInfo.Count -gt 0) {
+            Write-Host "($($Script:OfficeInfo[0].PhienBan)) " -NoNewline -ForegroundColor Cyan
+        }
+        Write-Host "+ Dung OneDrive + Mo thu muc + Go OneDrive" -ForegroundColor White
+        
+        Write-Host "  2. Go Office " -NoNewline -ForegroundColor White
+        if ($Script:OfficeInfo.Count -gt 0) {
+            Write-Host "($($Script:OfficeInfo[0].PhienBan)) " -NoNewline -ForegroundColor Cyan
+        }
+        Write-Host "+ Dung OneDrive + Go OneDrive" -ForegroundColor White
+        
+        Write-Host "  3. Go Office " -NoNewline -ForegroundColor White
+        if ($Script:OfficeInfo.Count -gt 0) {
+            Write-Host "($($Script:OfficeInfo[0].PhienBan))" -ForegroundColor Cyan
+        } else {
+            Write-Host ""
+        }
+    } else {
+        # TH2: OneDrive khong dang dong bo
+        if ($hasOffice -and $hasOneDrive) {
+            Write-Host "  1. Go Office " -NoNewline -ForegroundColor White
+            if ($Script:OfficeInfo.Count -gt 0) {
+                Write-Host "($($Script:OfficeInfo[0].PhienBan)) " -NoNewline -ForegroundColor Cyan
+            }
+            Write-Host "+ Dung OneDrive + Go OneDrive" -ForegroundColor White
+            
+            Write-Host "  2. Go Office " -NoNewline -ForegroundColor White
+            if ($Script:OfficeInfo.Count -gt 0) {
+                Write-Host "($($Script:OfficeInfo[0].PhienBan))" -ForegroundColor Cyan
+            } else {
+                Write-Host ""
+            }
+        } elseif ($hasOffice) {
+            Write-Host "  1. Go Office " -NoNewline -ForegroundColor White
+            if ($Script:OfficeInfo.Count -gt 0) {
+                Write-Host "($($Script:OfficeInfo[0].PhienBan))" -ForegroundColor Cyan
+            } else {
+                Write-Host ""
+            }
+        } elseif ($hasOneDrive) {
+            Write-Host "  1. Dung OneDrive + Go OneDrive" -ForegroundColor White
+        }
+    }
+    
+    Write-Host ""
+    Write-Host "  0. Thoat" -ForegroundColor Red
+    
+    Write-Host ""
+    Write-Host "----------------------------------------------------------------" -ForegroundColor Gray
+    Write-Host ""
+}
+
+# ===== MAIN =====
+function Main {
+    # Kiem tra ban dau
+    Show-InitialScan
+    
+    $hasOffice = $Script:OfficeInfo.Count -gt 0
+    $hasOneDrive = $Script:OneDriveInfo.DaCaiDat
+    
+    # Neu khong co gi ca thi chi hien thoat
+    if (-not $hasOffice -and -not $hasOneDrive) {
+        Show-Menu
+        Read-Host "Nhan Enter de thoat"
+        Write-Host ""
+        Write-Host "Tam biet!" -ForegroundColor Green
+        return
+    }
+    
+    # Hien thi menu va xu ly
+    do {
+        Show-Menu
+        
+        # Tinh toan so lua chon toi da
+        $maxChoice = 0
+        if ($Script:OneDriveInfo.DangDongBo) {
+            $maxChoice = 3
+        } else {
+            if ($hasOffice -and $hasOneDrive) {
+                $maxChoice = 2
+            } else {
+                $maxChoice = 1
+            }
+        }
+        
+        $choice = Read-Host "Nhap lua chon (0-$maxChoice)"
+        
+        if ($choice -eq '0') {
+            Write-Host ""
+            Write-Host "Tam biet!" -ForegroundColor Green
+            break
+        }
+        
+        if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $maxChoice) {
+            Process-Choice -Choice ([int]$choice)
+            
+            Write-Host ""
+            Write-Host "Nhan Enter de tiep tuc..." -ForegroundColor Gray
+            Read-Host
+            
+            # Kiem tra lai he thong
+            Show-InitialScan
+            
+            # Cap nhat trang thai
+            $hasOffice = $Script:OfficeInfo.Count -gt 0
+            $hasOneDrive = $Script:OneDriveInfo.DaCaiDat
+            
+            # Neu khong con gi thi thoat
+            if (-not $hasOffice -and -not $hasOneDrive) {
+                Write-Host ""
+                Write-Host "[+] Da go cai dat tat ca. Thoat chuong trinh..." -ForegroundColor Green
+                Start-Sleep -Seconds 2
+                break
+            }
+        } else {
+            Write-Host ""
+            Write-Host "[-] Lua chon khong hop le!" -ForegroundColor Red
+            Start-Sleep -Seconds 2
+            Clear-Host
+            Show-InitialScan
+        }
+        
+    } while ($true)
+}
+
+# Chay script
+Main
