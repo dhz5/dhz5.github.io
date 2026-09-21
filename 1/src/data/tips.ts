@@ -591,7 +591,7 @@ export const categories: Category[] = [
         id: "fake-name",
         title: "Tạo thông tin giả (tên, địa chỉ, thẻ)",
         command: "https://fakenamegenerator.com",
-        description: "Tạo danh tính giả hoàn chỉnh: họ tên, địa chỉ, email, số thẻ tín dụng test (không dùng để gian lận) — hữu ích khi test form đăng ký.",
+        description: "Tạo danh tính giả hoàn chỉnh: họ tên, địa chỉ, email, số thẻ tín dụng - visa (không dùng để gian lận) — hữu ích khi test form đăng ký.",
         usage: "Vào fakenamegenerator.com → chọn quốc gia → Generate → dùng thông tin để đăng ký thử",
         type: "web",
         tags: ["fake", "thông tin giả", "test", "đăng ký"],
