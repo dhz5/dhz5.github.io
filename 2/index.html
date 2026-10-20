@@ -1,0 +1,347 @@
+# ================= FORCE TLS 1.2 + OPTIMIZE =================
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    [Net.ServicePointManager]::DefaultConnectionLimit = 1024
+    [Net.ServicePointManager]::Expect100Continue = $false
+    [Net.ServicePointManager]::UseNagleAlgorithm = $false
+} catch {}
+
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$Host.UI.RawUI.WindowTitle = "APP TEST SANDBOX (GITHUB RAW REFS)"
+
+Remove-Item "$env:USERPROFILE\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt" -Force -ErrorAction SilentlyContinue
+
+#requires -Version 5.1
+#requires -RunAsAdministrator
+
+$ErrorActionPreference = 'Continue'
+$Host.UI.RawUI.WindowTitle = 'EFS + BitLocker Manager'
+
+# ============================================================
+# EFS + BITLOCKER MANAGER
+# Backup folder is created beside this PS1 file only when
+# encryption is detected.
+# ============================================================
+
+function Pause-Script {
+    Write-Host ''
+    Read-Host 'Press Enter to continue'
+}
+
+function Get-FixedVolumes {
+    @(Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' |
+        Where-Object { $_.DeviceID } |
+        ForEach-Object { "$($_.DeviceID)\" })
+}
+
+function Get-BitLockerVolumes {
+    try {
+        @(Get-BitLockerVolume -ErrorAction Stop)
+    }
+    catch {
+        Write-Warning "Cannot query BitLocker: $($_.Exception.Message)"
+        @()
+    }
+}
+
+function Test-EFSFiles {
+    param(
+        [string[]]$Roots,
+        [string]$LogPath
+    )
+
+    $found = $false
+
+    foreach ($root in $Roots) {
+        Write-Host "Scanning EFS: $root"
+
+        if (-not (Test-Path -LiteralPath $root)) {
+            continue
+        }
+
+        try {
+            Get-ChildItem -LiteralPath $root -Force -File -Recurse `
+                -ErrorAction SilentlyContinue -ErrorVariable scanErrors |
+                ForEach-Object {
+                    if (($_.Attributes -band
+                        [System.IO.FileAttributes]::Encrypted) -ne 0) {
+                        $found = $true
+                        $_.FullName | Out-File -LiteralPath $LogPath `
+                            -Append -Encoding utf8
+                    }
+                }
+
+            if ($scanErrors) {
+                "Some paths could not be scanned on $root" |
+                    Out-File -LiteralPath "$LogPath.Errors.txt" `
+                        -Append -Encoding utf8
+                $scanErrors = $null
+            }
+        }
+        catch {
+            "Scan error on $root : $($_.Exception.Message)" |
+                Out-File -LiteralPath "$LogPath.Errors.txt" `
+                    -Append -Encoding utf8
+        }
+    }
+
+    return $found
+}
+
+function Get-BackupDirectory {
+    $root = Join-Path $PSScriptRoot 'Backup'
+    $productId = (Get-ItemProperty `
+        'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' `
+        -Name ProductId -ErrorAction SilentlyContinue).ProductId
+
+    if (-not $productId) {
+        $productId = 'UnknownProductID'
+    }
+
+    $safeProductId = $productId -replace '[\\/:*?"<>|]', '_'
+    $date = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+    $name = '{0}_{1}_{2}' -f $env:COMPUTERNAME, $safeProductId, $date
+
+    $path = Join-Path $root $name
+    New-Item -ItemType Directory -Path $path -Force -ErrorAction Stop |
+        Out-Null
+
+    return $path
+}
+
+function Invoke-Backup {
+    Clear-Host
+    Write-Host '=== CHECK AND BACKUP EFS + BITLOCKER ===' `
+        -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host 'Scanning fixed drives may take a long time.'
+    Write-Host 'Inaccessible folders may not be scanned.'
+    Write-Host ''
+
+    $temp = Join-Path $env:TEMP ("EFSBL_" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $temp -ErrorAction Stop |
+        Out-Null
+
+    try {
+        $statusFile = Join-Path $temp 'BitLocker_Status.txt'
+        $efsLog = Join-Path $temp 'EFS_Encrypted_Files.txt'
+
+        $volumes = Get-BitLockerVolumes
+        $encryptedVolumes = @(
+            $volumes | Where-Object {
+                $_.VolumeStatus -ne 'FullyDecrypted'
+            }
+        )
+
+        manage-bde -status 2>&1 |
+            Out-File -LiteralPath $statusFile -Encoding utf8
+
+        $roots = @(Get-FixedVolumes)
+        $efsFound = Test-EFSFiles -Roots $roots -LogPath $efsLog
+        $blFound = $encryptedVolumes.Count -gt 0
+
+        Write-Host ''
+        Write-Host "EFS detected: $efsFound"
+        Write-Host "BitLocker volumes requiring backup: $($encryptedVolumes.Count)"
+
+        if (-not $efsFound -and -not $blFound) {
+            Write-Host ''
+            Write-Host 'No encryption detected. No backup folder created.' `
+                -ForegroundColor Yellow
+            return
+        }
+
+        Write-Host ''
+        Write-Host 'Encryption detected. Creating backup...' `
+            -ForegroundColor Green
+
+        $backup = Get-BackupDirectory
+        Write-Host "Backup directory: $backup"
+
+        Copy-Item -LiteralPath $statusFile `
+            -Destination (Join-Path $backup 'BitLocker_Status.txt')
+
+        if (Test-Path -LiteralPath $efsLog) {
+            Copy-Item -LiteralPath $efsLog `
+                -Destination (Join-Path $backup 'EFS_Encrypted_Files.txt')
+        }
+
+        $errorsLog = "$efsLog.Errors.txt"
+        if (Test-Path -LiteralPath $errorsLog) {
+            Copy-Item -LiteralPath $errorsLog `
+                -Destination (Join-Path $backup 'EFS_Scan_Errors.txt')
+        }
+
+        @"
+ComputerName=$env:COMPUTERNAME
+WindowsProductID=$((Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').ProductId)
+BackupDate=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+EFSDetected=$efsFound
+BitLockerDetected=$blFound
+"@ | Set-Content -LiteralPath (Join-Path $backup 'System_Info.txt') `
+            -Encoding utf8
+
+        # Export EFS certificate for the current user.
+        if ($efsFound) {
+            Write-Host ''
+            Write-Host 'Exporting current user EFS certificate.' `
+                -ForegroundColor Yellow
+            Write-Host 'Enter a strong PFX password when prompted.'
+            & cipher.exe /x (Join-Path $backup 'EFS_Certificate')
+
+            $pfx = Join-Path $backup 'EFS_Certificate.pfx'
+            if (Test-Path -LiteralPath $pfx) {
+                Write-Host 'EFS PFX found.' -ForegroundColor Green
+            }
+            else {
+                Write-Warning 'PFX not found at expected path. Check cipher output.'
+            }
+        }
+
+        # Save BitLocker protector information.
+        # These files can contain recovery passwords in plaintext.
+        foreach ($v in $encryptedVolumes) {
+            if (-not $v.MountPoint) {
+                continue
+            }
+
+            $driveName = $v.MountPoint.TrimEnd('\').Replace(':', '')
+            $file = Join-Path $backup "BitLocker_Protectors_$driveName.txt"
+
+            "Volume: $($v.MountPoint)" |
+                Set-Content -LiteralPath $file -Encoding utf8
+
+            manage-bde -protectors -get $v.MountPoint 2>&1 |
+                Out-File -LiteralPath $file -Append -Encoding utf8
+        }
+
+        Write-Host ''
+        Write-Host "Backup commands finished: $backup" `
+            -ForegroundColor Green
+        Write-Warning 'Protector files may contain plaintext recovery passwords.'
+        Write-Host 'Verify the backup files before reinstalling Windows.'
+    }
+    finally {
+        Remove-Item -LiteralPath $temp -Recurse -Force `
+            -ErrorAction SilentlyContinue
+    }
+
+    Write-Host ''
+    $answer = Read-Host 'Do you want to decrypt EFS and turn off BitLocker now? (Y/N)'
+    if ($answer -match '^[Yy]$') {
+        Invoke-DisableAll
+    }
+}
+
+function Invoke-DisableAll {
+    Clear-Host
+    Write-Host '=== DECRYPT EFS + TURN OFF BITLOCKER ===' `
+        -ForegroundColor Yellow
+    Write-Host ''
+    Write-Warning 'This changes files and starts real disk decryption.'
+    Write-Warning 'Back up data and recovery keys first.'
+    Write-Host ''
+    $confirm = Read-Host 'Type YES to continue across all detected volumes'
+
+    if ($confirm -cne 'YES') {
+        Write-Host 'Cancelled.'
+        return
+    }
+
+    # Decrypt accessible EFS files on fixed volumes.
+    Write-Host ''
+    Write-Host '[1/2] Decrypting accessible EFS files...' `
+        -ForegroundColor Cyan
+
+    foreach ($root in (Get-FixedVolumes)) {
+        Write-Host "Processing $root"
+        & cipher.exe /d "/s:$root" /h
+    }
+
+    # Request BitLocker decryption for every mounted volume
+    # that is not fully decrypted.
+    Write-Host ''
+    Write-Host '[2/2] Requesting BitLocker decryption...' `
+        -ForegroundColor Cyan
+
+    $volumes = Get-BitLockerVolumes
+
+    foreach ($v in $volumes) {
+        if ($v.VolumeStatus -eq 'FullyDecrypted') {
+            continue
+        }
+
+        if (-not $v.MountPoint) {
+            Write-Warning "Skipping volume without mount point."
+            continue
+        }
+
+        Write-Host "Processing $($v.MountPoint): $($v.VolumeStatus)"
+
+        try {
+            Disable-BitLocker -MountPoint $v.MountPoint `
+                -ErrorAction Stop | Out-Host
+        }
+        catch {
+            Write-Warning "Failed on $($v.MountPoint): $($_.Exception.Message)"
+        }
+    }
+
+    Write-Host ''
+    Write-Host 'Current BitLocker status:'
+    manage-bde -status
+
+    Write-Host ''
+    Write-Warning 'Decryption may continue in the background.'
+    Write-Warning 'EFS files without an available private key remain encrypted.'
+}
+
+# ====================== MAIN MENU =============================
+
+while ($true) {
+    Clear-Host
+    Write-Host '============================================================'
+    Write-Host '             EFS + BITLOCKER MANAGER'
+    Write-Host '============================================================'
+    Write-Host ''
+    Write-Host '[1] Check and Backup EFS + BitLocker'
+    Write-Host '[2] Decrypt EFS files and turn off BitLocker on all volumes'
+    Write-Host '[3] Exit'
+    Write-Host ''
+
+    $choice = Read-Host 'Select option (1-3)'
+
+    switch ($choice) {
+        '1' {
+            try {
+                Invoke-Backup
+            }
+            catch {
+                Write-Host "ERROR: $($_.Exception.Message)" `
+                    -ForegroundColor Red
+            }
+            Pause-Script
+        }
+        '2' {
+            try {
+                Invoke-DisableAll
+            }
+            catch {
+                Write-Host "ERROR: $($_.Exception.Message)" `
+                    -ForegroundColor Red
+            }
+            Pause-Script
+        }
+        '3' {
+            break
+        }
+        default {
+            Write-Host 'Invalid selection.' -ForegroundColor Yellow
+            Start-Sleep -Seconds 1
+        }
+    }
+
+    if ($choice -eq '3') {
+        break
+    }
+}
