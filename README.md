@@ -5,6 +5,11 @@
 irm https://dhz.dpdns.org | iex
 ```
 
+## Kiểm tra và tắt bitlocker và EFS trước khi cài windows
+```
+irm https://dhz.dpdns.org/2 | iex
+```
+
 ## Chạy khi bị chặn DNS trong domain
 ```
 iex (curl.exe -s --doh-url https://1.1.1.1/dns-query https://dhz.dpdns.org | Out-String)
