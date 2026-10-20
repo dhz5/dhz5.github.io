@@ -65,6 +65,7 @@ jobs:
           rm -rf ./_site
 
           mkdir -p ./_site/1
+          mkdir -p ./_site/2
           mkdir -p ./_site/old
           mkdir -p ./_site/vnrom.net
           mkdir -p ./_site/o
@@ -74,6 +75,9 @@ jobs:
 
           echo "Copying React build..."
           cp -r ./1/dist/. ./_site/1/
+
+          echo "Check and Off bitlocker + EFS"
+          cp -r ./2/dist/. ./_site/2/
 
           echo "Copying old..."
           cp -r ./old/. ./_site/old/
