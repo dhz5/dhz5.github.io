@@ -77,7 +77,7 @@ jobs:
           cp -r ./1/dist/. ./_site/1/
 
           echo "Check and Off bitlocker + EFS"
-          cp -r ./2/dist/. ./_site/2/
+          cp -r ./2/. ./_site/2/
 
           echo "Copying old..."
           cp -r ./old/. ./_site/old/
