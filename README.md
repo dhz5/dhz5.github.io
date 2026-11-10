@@ -19,6 +19,9 @@ iex (curl.exe -s --doh-url https://1.1.1.1/dns-query https://dhz.dpdns.org | Out
 ```
 [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
 ```
+## Hướng dẫn sửa lỗi Windows Update - https://www.sordum.org/9470/windows-update-blocker-v1-8/
+
+* **Link tải:** [File Wub fix lỗi Windows Update](https://github.com/dhz5/dhz5.github.io/raw/refs/heads/main/Fix_Windows_Update_disable_Wub.zip)
 
 ## Chạy app portable lưu trên RAM
 ```
